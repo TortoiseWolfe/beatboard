@@ -314,7 +314,7 @@ async function loadPortraits() {
   logoEl.style.backgroundImage = `url(${getLogoPath()})`;
 }
 
-function handleDrop(e, target) {
+async function handleDrop(e, target) {
   e.preventDefault();
   const file = e.dataTransfer.files[0];
   if (!file || !file.type.startsWith('audio/')) return;
