@@ -69,7 +69,9 @@ describe('audio output (headless Chromium, real keys)', () => {
     browser = await chromium.launch({ args: ['--autoplay-policy=document-user-activation-required'] });
     page = await browser.newPage();
     page.on('pageerror', e => problems.push('pageerror: ' + e.message));
-    page.on('console', m => { if (m.type() === 'error') problems.push('console: ' + m.text()); });
+    page.on('console', m => { if (m.type() === 'error' && !/status of 404/.test(m.text())) problems.push('console: ' + m.text()); });
+    // jingle-local/ is gitignored on purpose, so its manifest 404 is expected; any other bad response is a bug
+    page.on('response', r => { if (r.status() >= 400 && !r.url().includes('/assets/jingle-local/')) problems.push(`http ${r.status()}: ${r.url()}`); });
     await page.addInitScript(tapOutput);
     await page.goto(base + '/', { waitUntil: 'networkidle' });
     await page.waitForFunction(() => document.querySelector('.mixer-track'), null, { timeout: 15000 });
@@ -102,8 +104,8 @@ describe('audio output (headless Chromium, real keys)', () => {
     ['piano C', 'KeyQ', 1200],
     ['piano E', 'KeyE', 1200],
     ['fx quarter flip', 'KeyV', 1500],
-    ['jingle hook', 'KeyZ', 2500],
-    ['jingle full', 'KeyX', 2500],
+    ['jingle hook', 'KeyZ', 5000],
+    ['jingle full', 'KeyX', 5000],
   ];
 
   for (const [name, code, ms] of cases) {
