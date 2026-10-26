@@ -11,9 +11,9 @@ const PRESET_DEFS = {
     { name: 'Hats', pattern: [1, 0, 1, 0, 1, 0, 1, 0], muted: false, volume: 0.6 },
     { name: 'Perc', pattern: [0, 1, 0, 1, 0, 1, 0, 1], muted: false, volume: 0.5 },
     { name: 'Bass', pattern: [1, 0, 0, 0, 1, 0, 0, 0], muted: false, volume: 0.7 },
-    { name: 'Keys', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: true, volume: 0.6 },
-    { name: 'Bed', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: true, volume: 0.4 },
-    { name: 'Jingle', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: true, volume: 0.5 }
+    { name: 'Keys', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: false, volume: 0.6 },
+    { name: 'Bed', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: false, volume: 0.4 },
+    { name: 'Jingle', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: false, volume: 0.5 }
   ],
   'Basic Rock': [
     { name: 'Kick', pattern: [1, 0, 0, 0, 1, 0, 0, 0], muted: false, volume: 0.8 },
@@ -21,9 +21,9 @@ const PRESET_DEFS = {
     { name: 'Hats', pattern: [1, 1, 1, 1, 1, 1, 1, 1], muted: false, volume: 0.6 },
     { name: 'Perc', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: true, volume: 0.5 },
     { name: 'Bass', pattern: [1, 0, 1, 0, 1, 0, 1, 0], muted: false, volume: 0.7 },
-    { name: 'Keys', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: true, volume: 0.6 },
-    { name: 'Bed', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: true, volume: 0.4 },
-    { name: 'Jingle', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: true, volume: 0.5 }
+    { name: 'Keys', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: false, volume: 0.6 },
+    { name: 'Bed', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: false, volume: 0.4 },
+    { name: 'Jingle', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: false, volume: 0.5 }
   ],
   'Disco': [
     { name: 'Kick', pattern: [1, 0, 0, 1, 1, 0, 0, 1], muted: false, volume: 0.8 },
@@ -32,8 +32,8 @@ const PRESET_DEFS = {
     { name: 'Perc', pattern: [0, 1, 0, 1, 0, 1, 0, 1], muted: false, volume: 0.5 },
     { name: 'Bass', pattern: [1, 0, 1, 0, 0, 1, 0, 1], muted: false, volume: 0.7 },
     { name: 'Keys', pattern: [0, 1, 0, 1, 0, 1, 0, 1], muted: false, volume: 0.6 },
-    { name: 'Bed', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: true, volume: 0.4 },
-    { name: 'Jingle', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: true, volume: 0.5 }
+    { name: 'Bed', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: false, volume: 0.4 },
+    { name: 'Jingle', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: false, volume: 0.5 }
   ],
   'Jazz': [
     { name: 'Kick', pattern: [1, 0, 0, 0, 0, 0, 0, 0], muted: false, volume: 0.8 },
@@ -42,8 +42,8 @@ const PRESET_DEFS = {
     { name: 'Perc', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: true, volume: 0.5 },
     { name: 'Bass', pattern: [1, 0, 1, 0, 1, 0, 1, 0], muted: false, volume: 0.7 },
     { name: 'Keys', pattern: [0, 1, 0, 1, 0, 1, 0, 1], muted: false, volume: 0.6 },
-    { name: 'Bed', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: true, volume: 0.4 },
-    { name: 'Jingle', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: true, volume: 0.5 }
+    { name: 'Bed', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: false, volume: 0.4 },
+    { name: 'Jingle', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: false, volume: 0.5 }
   ],
   'Waltz': [
     { name: 'Kick', pattern: [1, 0, 0, 1, 0, 0, 0, 0], muted: false, volume: 0.8 },
@@ -52,8 +52,8 @@ const PRESET_DEFS = {
     { name: 'Perc', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: true, volume: 0.5 },
     { name: 'Bass', pattern: [1, 0, 0, 1, 0, 0, 1, 0], muted: false, volume: 0.7 },
     { name: 'Keys', pattern: [0, 0, 1, 0, 0, 0, 1, 0], muted: false, volume: 0.6 },
-    { name: 'Bed', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: true, volume: 0.4 },
-    { name: 'Jingle', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: true, volume: 0.5 }
+    { name: 'Bed', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: false, volume: 0.4 },
+    { name: 'Jingle', pattern: [0, 0, 0, 0, 0, 0, 0, 0], muted: false, volume: 0.5 }
   ]
 };
 

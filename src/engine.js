@@ -88,11 +88,13 @@ export class Engine {
     this.startLookaheadClock();
   }
 
+  /** Browsers start the context suspended until a user gesture; call from every key and pointer event. */
   ensureAudioContext() {
-    if (!this.actx) return;
-    if (this.actx.state === 'suspended') {
-      this.actx.resume().catch(console.error);
+    if (!this.actx) return Promise.resolve();
+    if (this.actx.state === 'suspended' || this.actx.state === 'interrupted') {
+      return this.actx.resume().catch(console.error);
     }
+    return Promise.resolve();
   }
 
   makeLimiterCurve() {
@@ -536,7 +538,6 @@ export class Engine {
 
     track.launched = true;
     track.launchKind = kind;
-    track.muted = false;
     this.updateTrackGains();
 
     if (trackNum === 7) {
@@ -552,7 +553,6 @@ export class Engine {
     const track = this.patterns[trackNum - 1];
     if (!track) return;
     track.launched = false;
-    track.muted = true;
     this.updateTrackGains();
 
     if (trackNum === 7) {
@@ -598,7 +598,6 @@ export class Engine {
     this.stop();
     this.patterns.forEach((t, i) => {
       t.launched = false;
-      t.muted = true;
     });
     this.stopBedLoop();
     if (this.activeJingleSource) {

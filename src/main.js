@@ -232,6 +232,9 @@ function populateJinglePicker() {
 }
 
 function bindUI() {
+  // Any click or touch also unlocks audio, not just the keyboard.
+  document.addEventListener('pointerdown', () => engine.ensureAudioContext());
+
   document.addEventListener('keydown', e => {
     engine.ensureAudioContext();
     if (e.code === 'Space' && !isTextInputFocused()) {
