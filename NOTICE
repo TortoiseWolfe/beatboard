@@ -1,0 +1,7 @@
+# Vendored from Claude-of-Duty (MIT) — procedural audio (footsteps)
+
+Source: https://github.com/mshumer/Claude-of-Duty (Matt Shumer), MIT.
+
+Minimal set for surface-keyed procedural footsteps (pure Web Audio, zero assets,
+three-free, no ctx): rng.js (seedable PRNG), dsp.js (NoiseBank + synth primitives).
+Used in this repo for synthesized drum components.

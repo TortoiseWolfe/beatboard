@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>beatboard — keyboard beat machine</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="assets/band/logo.webp">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <h1>beatboard</h1>
+      <div class="transport">
+        <button id="btnPlay" class="btn" aria-label="Play/Stop (Enter)">▶</button>
+        <span id="tempoDisplay" class="tempo">110 BPM</span>
+        <button id="btnPresetPrev" class="btn" aria-label="Previous preset ([)">&larr;</button>
+        <span id="presetDisplay" class="preset">Hip Hop</span>
+        <button id="btnPresetNext" class="btn" aria-label="Next preset (])">&rarr;</button>
+        <button id="btnLearn" class="btn" aria-label="Learn mode (`)">⌨</button>
+        <button id="btnBand" class="btn" aria-label="Meet the band (Shift+/)">👥</button>
+      </div>
+    </header>
+
+    <main class="main-grid">
+      <section id="keycapGrid" class="keycap-grid" aria-label="Keyboard pads">
+        <div class="keycap-row" data-track="1">
+          <div class="keycap" data-key="Digit1" data-action="launch" data-track="1"><kbd>1</kbd><span>Kick</span></div>
+          <div class="keycap" data-key="KeyD" data-action="hit" data-track="1" data-pad="kick"><kbd>D</kbd><span>Kick</span></div>
+        </div>
+        <div class="keycap-row" data-track="2">
+          <div class="keycap" data-key="Digit2" data-action="launch" data-track="2"><kbd>2</kbd><span>Snare</span></div>
+          <div class="keycap" data-key="KeyJ" data-action="hit" data-track="2" data-pad="snare"><kbd>J</kbd><span>Snare</span></div>
+        </div>
+        <div class="keycap-row" data-track="3">
+          <div class="keycap" data-key="Digit3" data-action="launch" data-track="3"><kbd>3</kbd><span>Hats</span></div>
+          <div class="keycap" data-key="KeyS" data-action="hit" data-track="3" data-pad="hatClosed"><kbd>S</kbd><span>Hat</span></div>
+          <div class="keycap" data-key="KeyF" data-action="hit" data-track="3" data-pad="hatOpen"><kbd>F</kbd><span>Open Hat</span></div>
+          <div class="keycap" data-key="KeyH" data-action="hit" data-track="3" data-pad="ride"><kbd>H</kbd><span>Ride</span></div>
+        </div>
+        <div class="keycap-row" data-track="4">
+          <div class="keycap" data-key="Digit4" data-action="launch" data-track="4"><kbd>4</kbd><span>Perc</span></div>
+          <div class="keycap" data-key="KeyA" data-action="hit" data-track="4" data-pad="clap"><kbd>A</kbd><span>Clap</span></div>
+          <div class="keycap" data-key="KeyK" data-action="hit" data-track="4" data-pad="tom"><kbd>K</kbd><span>Tom</span></div>
+          <div class="keycap" data-key="KeyL" data-action="hit" data-track="4" data-pad="tink"><kbd>L</kbd><span>Tink</span></div>
+        </div>
+        <div class="keycap-row" data-track="5">
+          <div class="keycap" data-key="Digit5" data-action="launch" data-track="5"><kbd>5</kbd><span>Bass</span></div>
+          <div class="keycap" data-key="KeyG" data-action="hit" data-track="5" data-pad="boom"><kbd>G</kbd><span>Boom</span></div>
+        </div>
+        <div class="keycap-row" data-track="6">
+          <div class="keycap" data-key="Digit6" data-action="launch" data-track="6"><kbd>6</kbd><span>Keys</span></div>
+          <div class="keycap piano" data-key="KeyQ" data-action="hit" data-track="6" data-pad="piano" data-note="C" data-sharp="false"><kbd>Q</kbd><span>C</span></div>
+          <div class="keycap piano sharp" data-key="KeyW" data-action="hit" data-track="6" data-pad="piano" data-note="C" data-sharp="true"><kbd>W</kbd><span>C♯</span></div>
+          <div class="keycap piano" data-key="KeyE" data-action="hit" data-track="6" data-pad="piano" data-note="D" data-sharp="false"><kbd>E</kbd><span>D</span></div>
+          <div class="keycap piano sharp" data-key="KeyR" data-action="hit" data-track="6" data-pad="piano" data-note="D" data-sharp="true"><kbd>R</kbd><span>D♯</span></div>
+          <div class="keycap piano" data-key="KeyT" data-action="hit" data-track="6" data-pad="piano" data-note="E" data-sharp="false"><kbd>T</kbd><span>E</span></div>
+          <div class="keycap piano" data-key="KeyY" data-action="hit" data-track="6" data-pad="piano" data-note="F" data-sharp="false"><kbd>Y</kbd><span>F</span></div>
+          <div class="keycap piano sharp" data-key="KeyU" data-action="hit" data-track="6" data-pad="piano" data-note="F" data-sharp="true"><kbd>U</kbd><span>F♯</span></div>
+          <div class="keycap piano" data-key="KeyI" data-action="hit" data-track="6" data-pad="piano" data-note="G" data-sharp="false"><kbd>I</kbd><span>G</span></div>
+          <div class="keycap piano sharp" data-key="KeyO" data-action="hit" data-track="6" data-pad="piano" data-note="G" data-sharp="true"><kbd>O</kbd><span>G♯</span></div>
+          <div class="keycap piano" data-key="KeyP" data-action="hit" data-track="6" data-pad="piano" data-note="A" data-sharp="false"><kbd>P</kbd><span>A</span></div>
+          <div class="keycap piano sharp" data-key="BracketLeft" data-action="hit" data-track="6" data-pad="piano" data-note="A" data-sharp="true"><kbd>[</kbd><span>A♯</span></div>
+          <div class="keycap piano" data-key="BracketRight" data-action="hit" data-track="6" data-pad="piano" data-note="B" data-sharp="false"><kbd>]</kbd><span>B</span></div>
+          <div class="keycap piano" data-key="Backslash" data-action="hit" data-track="6" data-pad="piano" data-note="C" data-sharp="false" data-octave="1"><kbd>\\</kbd><span>C²</span></div>
+        </div>
+        <div class="keycap-row" data-track="7">
+          <div class="keycap" data-key="Digit7" data-action="launch" data-track="7"><kbd>7</kbd><span>Bed</span></div>
+          <div class="keycap" data-key="KeyV" data-action="hit" data-track="7" data-pad="quarterFlip"><kbd>V</kbd><span>¼ Flip</span></div>
+        </div>
+        <div class="keycap-row" data-track="8">
+          <div class="keycap" data-key="Digit8" data-action="launch" data-track="8"><kbd>8</kbd><span>Jingle</span></div>
+          <div class="keycap" data-key="KeyZ" data-action="launch" data-track="8" data-kind="hook"><kbd>Z</kbd><span>Hook</span></div>
+          <div class="keycap" data-key="KeyX" data-action="launch" data-track="8" data-kind="full"><kbd>X</kbd><span>Full</span></div>
+          <div class="keycap" data-key="KeyC" data-action="none"><kbd>C</kbd><span>—</span></div>
+          <div class="keycap" data-key="KeyB" data-action="none"><kbd>B</kbd><span>—</span></div>
+          <div class="keycap" data-key="KeyN" data-action="none"><kbd>N</kbd><span>—</span></div>
+          <div class="keycap" data-key="KeyM" data-action="none"><kbd>M</kbd><span>—</span></div>
+        </div>
+      </section>
+
+      <aside id="mixer" class="mixer" aria-label="8-track mixer">
+        <div class="mixer-header">
+          <div class="mixer-track master" data-track="master">
+            <div class="strip-label">MIX</div>
+            <div class="strip-portrait" id="portraitMaster"></div>
+            <div class="strip-name">Form</div>
+            <div class="strip-role">Architect</div>
+            <div class="strip-fader">
+              <input type="range" id="masterFader" min="0" max="100" value="80" aria-label="Master level">
+            </div>
+            <div class="strip-value" id="masterValue">80%</div>
+          </div>
+        </div>
+        <div class="mixer-tracks" id="mixerTracks"></div>
+      </aside>
+    </main>
+
+    <footer class="bottombar">
+      <div class="legend">
+        <span class="legend-group"><kbd>1–8</kbd> launch/stop track (Shift = immediate)</span>
+        <span class="legend-group"><kbd>Enter</kbd> play/stop</span>
+        <span class="legend-group"><kbd>←/→</kbd> tempo ±1 (Shift ±5)</span>
+        <span class="legend-group"><kbd>↑/↓</kbd> master level</span>
+        <span class="legend-group"><kbd>[/]</kbd> prev/next preset</span>
+        <span class="legend-group"><kbd>Backspace</kbd> reset mixer</span>
+        <span class="legend-group"><kbd>Esc</kbd> stop all</span>
+        <span class="legend-group"><kbd>`</kbd> learn mode</span>
+        <span class="legend-group"><kbd>Space</kbd> hold MIX / <kbd>Tab</kbd> latch</span>
+      </div>
+      <p class="credit">Jingle: AI-generated (ACE-Step 1.5, 110 BPM). <a href="CREDITS.md">Full credits</a></p>
+    </footer>
+  </div>
+
+  <dialog id="bandDialog" class="band-dialog">
+    <div class="band-dialog-content">
+      <h2>ScriptHammer — the house band</h2>
+      <button class="close-btn" id="closeBandDialog" aria-label="Close">&times;</button>
+      <ul id="bandList" class="band-list"></ul>
+    </div>
+  </dialog>
+
+  <dialog id="learnDialog" class="learn-dialog">
+    <div class="learn-dialog-content">
+      <h2>Learn Mode</h2>
+      <p>Click a pad or control, then press a key to assign it.</p>
+      <p id="learnPrompt">Waiting for click…</p>
+      <button class="btn" id="cancelLearn">Cancel</button>
+    </div>
+  </dialog>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
