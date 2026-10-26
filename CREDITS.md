@@ -18,6 +18,7 @@
 | `assets/beds/214775_acid-bass.mp3` | freesound 214775 acid bass (SpankMyFilth), freesound.org/s/214775 | CC0 | 2026-10-25 |
 | `assets/beds/214958_acid-mod-bass.mp3` | freesound 214958 acid bass (SpankMyFilth), freesound.org/s/214958 | CC0 | 2026-10-25 |
 | `assets/jingle/manifest.json` | Public jingle manifest. AI-generated takes (ACE-Step 1.5, 110 BPM) | Public Domain / CC0 | 2026-10-26 |
+| `tools/kits/` (kit tooling) | Renders per-robot stems with ACE-Step 1.5 (MIT). Output is "music made with AI", and the ID3 tag says so. | MIT (tool); output Public Domain / CC0 | 2026-10-26 |
 
 All drums (kick, snare, closed hat, open hat, ride, clap, tom, tink, sub boom) are synthesized in real-time (`src/kit.js`) from DSP noise and resonator primitives; no drum samples are shipped.
 
