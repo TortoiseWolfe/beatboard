@@ -1,0 +1,12 @@
+{
+  "name": "beatboard",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "test:audio": "node --test test/audio-output.test.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.55.0"
+  }
+}

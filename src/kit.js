@@ -23,7 +23,7 @@ export class Kit {
 
   /** Kick: deep sine + click + sub */
   kick(t0 = this.actx.currentTime, level = 1) {
-    const out = gain(this.actx, 0);
+    const out = gain(this.actx, 1);
     const rng = this.rng.fork();
     const jit = semis(rng.range(-1.5, 1.5));
 
@@ -58,7 +58,7 @@ export class Kit {
 
   /** Snare: body + noise snap + ring */
   snare(t0 = this.actx.currentTime, level = 1) {
-    const out = gain(this.actx, 0);
+    const out = gain(this.actx, 1);
     const rng = this.rng.fork();
     const jit = semis(rng.range(-2, 2));
 
@@ -93,7 +93,7 @@ export class Kit {
 
   /** Closed hat: short noise burst */
   hatClosed(t0 = this.actx.currentTime, level = 1) {
-    const out = gain(this.actx, 0);
+    const out = gain(this.actx, 1);
     const rng = this.rng.fork();
 
     const src = this.bank.source('white', rng, rng.range(1.5, 2.2));
@@ -109,7 +109,7 @@ export class Kit {
 
   /** Open hat: longer noise with sweep */
   hatOpen(t0 = this.actx.currentTime, level = 1) {
-    const out = gain(this.actx, 0);
+    const out = gain(this.actx, 1);
     const rng = this.rng.fork();
 
     const src = this.bank.source('white', rng, rng.range(1.1, 1.5));
@@ -126,7 +126,7 @@ export class Kit {
 
   /** Ride: metallic ring */
   ride(t0 = this.actx.currentTime, level = 1) {
-    const out = gain(this.actx, 0);
+    const out = gain(this.actx, 1);
     const rng = this.rng.fork();
 
     const ring = struckResonator(this.actx, this.bank, rng, t0, [
@@ -151,7 +151,7 @@ export class Kit {
 
   /** Clap: layered noise bursts */
   clap(t0 = this.actx.currentTime, level = 1) {
-    const out = gain(this.actx, 0);
+    const out = gain(this.actx, 1);
     const rng = this.rng.fork();
 
     for (let i = 0; i < 3; i++) {
@@ -170,7 +170,7 @@ export class Kit {
 
   /** Tom: pitched sine with pitch drop */
   tom(t0 = this.actx.currentTime, level = 1, pitch = 1) {
-    const out = gain(this.actx, 0);
+    const out = gain(this.actx, 1);
     const rng = this.rng.fork();
     const baseFreq = 130 * pitch;
 
@@ -188,7 +188,7 @@ export class Kit {
 
   /** Tink: bright metallic ping */
   tink(t0 = this.actx.currentTime, level = 1) {
-    const out = gain(this.actx, 0);
+    const out = gain(this.actx, 1);
     const rng = this.rng.fork();
 
     const ring = struckResonator(this.actx, this.bank, rng, t0, [
@@ -203,7 +203,7 @@ export class Kit {
 
   /** Sub boom: very low sine */
   boom(t0 = this.actx.currentTime, level = 1) {
-    const out = gain(this.actx, 0);
+    const out = gain(this.actx, 1);
     const rng = this.rng.fork();
 
     const osc1 = osc(this.actx, 'sine', 42);
