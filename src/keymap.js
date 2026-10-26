@@ -10,79 +10,74 @@ export const LAYERS = {
 
 export const DEFAULT_KEYMAP = {
   play: {
-    'KeyA': { action: 'hit', track: 4, pad: 'clap' },
-    'KeyS': { action: 'hit', track: 3, pad: 'hatClosed' },
-    'KeyD': { action: 'hit', track: 1, pad: 'kick' },
-    'KeyF': { action: 'hit', track: 3, pad: 'hatOpen' },
-    'KeyG': { action: 'hit', track: 5, pad: 'boom' },
-    'KeyH': { action: 'hit', track: 3, pad: 'ride' },
-    'KeyJ': { action: 'hit', track: 2, pad: 'snare' },
-    'KeyK': { action: 'hit', track: 4, pad: 'tom' },
-    'KeyL': { action: 'hit', track: 4, pad: 'tink' },
-    'KeyQ': { action: 'hit', track: 6, pad: 'piano', note: 'C', sharp: false },
-    'KeyW': { action: 'hit', track: 6, pad: 'piano', note: 'C', sharp: true },
-    'KeyE': { action: 'hit', track: 6, pad: 'piano', note: 'D', sharp: false },
-    'KeyR': { action: 'hit', track: 6, pad: 'piano', note: 'D', sharp: true },
-    'KeyT': { action: 'hit', track: 6, pad: 'piano', note: 'E', sharp: false },
-    'KeyY': { action: 'hit', track: 6, pad: 'piano', note: 'F', sharp: false },
-    'KeyU': { action: 'hit', track: 6, pad: 'piano', note: 'F', sharp: true },
-    'KeyI': { action: 'hit', track: 6, pad: 'piano', note: 'G', sharp: false },
-    'KeyO': { action: 'hit', track: 6, pad: 'piano', note: 'G', sharp: true },
-    'KeyP': { action: 'hit', track: 6, pad: 'piano', note: 'A', sharp: false },
-    'BracketLeft': { action: 'hit', track: 6, pad: 'piano', note: 'A', sharp: true },
-    'BracketRight': { action: 'hit', track: 6, pad: 'piano', note: 'B', sharp: false },
-    'Backslash': { action: 'hit', track: 6, pad: 'piano', note: 'C', sharp: false, octave: 1 },
-    'KeyZ': { action: 'launch', track: 8, kind: 'hook' },
-    'KeyX': { action: 'launch', track: 8, kind: 'full' },
-    'KeyC': { action: 'none' },
-    'KeyV': { action: 'hit', track: 7, pad: 'quarterFlip' },
-    'KeyB': { action: 'none' },
-    'KeyN': { action: 'none' },
-    'KeyM': { action: 'none' },
-    'Digit1': { action: 'launch', track: 1 },
-    'Digit2': { action: 'launch', track: 2 },
-    'Digit3': { action: 'launch', track: 3 },
-    'Digit4': { action: 'launch', track: 4 },
-    'Digit5': { action: 'launch', track: 5 },
-    'Digit6': { action: 'launch', track: 6 },
-    'Digit7': { action: 'launch', track: 7 },
-    'Digit8': { action: 'launch', track: 8 },
-    'Enter': { action: 'transport' },
-    'ArrowLeft': { action: 'tempo', delta: -1 },
-    'ArrowRight': { action: 'tempo', delta: 1 },
-    'ArrowUp': { action: 'masterLevel', delta: 0.05 },
-    'ArrowDown': { action: 'masterLevel', delta: -0.05 },
-    'BracketLeft': { action: 'preset', delta: -1 },
-    'BracketRight': { action: 'preset', delta: 1 },
-    'Backspace': { action: 'resetMixer' },
-    'Escape': { action: 'stopAll' },
-    'Backquote': { action: 'learnToggle' }
+    Digit1: { action: 'launch', track: 1 },
+    Digit2: { action: 'launch', track: 2 },
+    Digit3: { action: 'launch', track: 3 },
+    Digit4: { action: 'launch', track: 4 },
+    Digit5: { action: 'launch', track: 5 },
+    Digit6: { action: 'launch', track: 6 },
+    Digit7: { action: 'launch', track: 7 },
+    Digit8: { action: 'launch', track: 8 },
+    Enter: { action: 'transport' },
+    ArrowLeft: { action: 'tempo', delta: -1 },
+    ArrowRight: { action: 'tempo', delta: 1 },
+    ArrowUp: { action: 'masterLevel', delta: 0.05 },
+    ArrowDown: { action: 'masterLevel', delta: -0.05 },
+    BracketLeft: { action: 'preset', delta: -1 },
+    BracketRight: { action: 'preset', delta: 1 },
+    Backspace: { action: 'resetMixer' },
+    Escape: { action: 'stopAll' },
+    Backquote: { action: 'learnToggle' },
+    KeyA: { action: 'hit', track: 4, pad: 'clap' },
+    KeyS: { action: 'hit', track: 3, pad: 'hatClosed' },
+    KeyD: { action: 'hit', track: 1, pad: 'kick' },
+    KeyF: { action: 'hit', track: 3, pad: 'hatOpen' },
+    KeyG: { action: 'hit', track: 5, pad: 'boom' },
+    KeyH: { action: 'hit', track: 3, pad: 'ride' },
+    KeyJ: { action: 'hit', track: 2, pad: 'snare' },
+    KeyK: { action: 'hit', track: 4, pad: 'tom' },
+    KeyL: { action: 'hit', track: 4, pad: 'tink' },
+    KeyQ: { action: 'hit', track: 6, pad: 'piano', note: 'c1', sharpNote: 'c1s' },
+    KeyW: { action: 'hit', track: 6, pad: 'piano', note: 'd1', sharpNote: 'd1s' },
+    KeyE: { action: 'hit', track: 6, pad: 'piano', note: 'e1', sharpNote: 'e1' },
+    KeyR: { action: 'hit', track: 6, pad: 'piano', note: 'f1', sharpNote: 'f1s' },
+    KeyT: { action: 'hit', track: 6, pad: 'piano', note: 'g1', sharpNote: 'g1s' },
+    KeyY: { action: 'hit', track: 6, pad: 'piano', note: 'a1', sharpNote: 'a1s' },
+    KeyU: { action: 'hit', track: 6, pad: 'piano', note: 'b1', sharpNote: 'b1' },
+    KeyI: { action: 'hit', track: 6, pad: 'piano', note: 'c2', sharpNote: 'c2' },
+    KeyZ: { action: 'launch', track: 8, kind: 'hook' },
+    KeyX: { action: 'launch', track: 8, kind: 'full' },
+    KeyC: { action: 'none' },
+    KeyV: { action: 'hit', track: 7, pad: 'quarterFlip' },
+    KeyB: { action: 'none' },
+    KeyN: { action: 'none' },
+    KeyM: { action: 'none' }
   },
   mix: {
-    'KeyQ': { action: 'mute', track: 1 },
-    'KeyW': { action: 'mute', track: 2 },
-    'KeyE': { action: 'mute', track: 3 },
-    'KeyR': { action: 'mute', track: 4 },
-    'KeyT': { action: 'mute', track: 5 },
-    'KeyY': { action: 'mute', track: 6 },
-    'KeyU': { action: 'mute', track: 7 },
-    'KeyI': { action: 'mute', track: 8 },
-    'KeyA': { action: 'solo', track: 1 },
-    'KeyS': { action: 'solo', track: 2 },
-    'KeyD': { action: 'solo', track: 3 },
-    'KeyF': { action: 'solo', track: 4 },
-    'KeyG': { action: 'solo', track: 5 },
-    'KeyH': { action: 'solo', track: 6 },
-    'KeyJ': { action: 'solo', track: 7 },
-    'KeyK': { action: 'solo', track: 8 },
-    'KeyZ': { action: 'level', track: 1, delta: 0.05 },
-    'KeyX': { action: 'level', track: 2, delta: 0.05 },
-    'KeyC': { action: 'level', track: 3, delta: 0.05 },
-    'KeyV': { action: 'level', track: 4, delta: 0.05 },
-    'KeyB': { action: 'level', track: 5, delta: 0.05 },
-    'KeyN': { action: 'level', track: 6, delta: 0.05 },
-    'KeyM': { action: 'level', track: 7, delta: 0.05 },
-    'Comma': { action: 'level', track: 8, delta: 0.05 }
+    KeyQ: { action: 'mute', track: 1 },
+    KeyW: { action: 'mute', track: 2 },
+    KeyE: { action: 'mute', track: 3 },
+    KeyR: { action: 'mute', track: 4 },
+    KeyT: { action: 'mute', track: 5 },
+    KeyY: { action: 'mute', track: 6 },
+    KeyU: { action: 'mute', track: 7 },
+    KeyI: { action: 'mute', track: 8 },
+    KeyA: { action: 'solo', track: 1 },
+    KeyS: { action: 'solo', track: 2 },
+    KeyD: { action: 'solo', track: 3 },
+    KeyF: { action: 'solo', track: 4 },
+    KeyG: { action: 'solo', track: 5 },
+    KeyH: { action: 'solo', track: 6 },
+    KeyJ: { action: 'solo', track: 7 },
+    KeyK: { action: 'solo', track: 8 },
+    KeyZ: { action: 'level', track: 1, delta: 0.05 },
+    KeyX: { action: 'level', track: 2, delta: 0.05 },
+    KeyC: { action: 'level', track: 3, delta: 0.05 },
+    KeyV: { action: 'level', track: 4, delta: 0.05 },
+    KeyB: { action: 'level', track: 5, delta: 0.05 },
+    KeyN: { action: 'level', track: 6, delta: 0.05 },
+    KeyM: { action: 'level', track: 7, delta: 0.05 },
+    Comma: { action: 'level', track: 8, delta: 0.05 }
   }
 };
 
@@ -91,14 +86,20 @@ const LAYER_STORAGE_KEY = 'beatboard.layer.v1';
 
 export function loadKeymap() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    }
   } catch (_) {}
   return JSON.parse(JSON.stringify(DEFAULT_KEYMAP));
 }
 
 export function saveKeymap(keymap) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(keymap));
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(keymap));
+    }
+  } catch (_) {}
 }
 
 export function exportKeymap() {
@@ -108,6 +109,9 @@ export function exportKeymap() {
 export function importKeymap(json) {
   try {
     const parsed = JSON.parse(json);
+    if (!parsed || typeof parsed !== 'object' || !parsed.play || !parsed.mix) {
+      return false;
+    }
     saveKeymap(parsed);
     return true;
   } catch (_) {
@@ -117,21 +121,28 @@ export function importKeymap(json) {
 
 export function loadLayer() {
   try {
-    const raw = localStorage.getItem(LAYER_STORAGE_KEY);
-    if (raw === 'mix') return LAYERS.MIX;
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(LAYER_STORAGE_KEY);
+      if (raw === 'mix') return LAYERS.MIX;
+    }
   } catch (_) {}
   return LAYERS.PLAY;
 }
 
 export function saveLayer(layer) {
-  localStorage.setItem(LAYER_STORAGE_KEY, layer);
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(LAYER_STORAGE_KEY, layer);
+    }
+  } catch (_) {}
 }
 
 export function isTextInputFocused() {
+  if (typeof document === 'undefined') return false;
   const el = document.activeElement;
   if (!el) return false;
-  const tag = el.tagName.toLowerCase();
-  if (tag === 'input' || tag === 'textarea') return true;
+  const tag = el.tagName ? el.tagName.toLowerCase() : '';
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
   if (el.isContentEditable) return true;
   return false;
 }

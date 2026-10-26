@@ -10,7 +10,10 @@
 <body>
   <div id="app">
     <header class="topbar">
-      <h1>beatboard</h1>
+      <div class="brand">
+        <h1>beatboard</h1>
+        <div id="mixLayerBanner" class="mix-banner" style="display: none;">MIX LAYER — Form (Architect)</div>
+      </div>
       <div class="transport">
         <button id="btnPlay" class="btn" aria-label="Play/Stop (Enter)">▶</button>
         <span id="tempoDisplay" class="tempo">110 BPM</span>
@@ -22,76 +25,104 @@
       </div>
     </header>
 
+    <div class="status-bar">
+      <div class="last-pad">Last Hit: <span id="lastPadDisplay">Ready</span></div>
+      <div class="jingle-select-wrap">
+        <label for="jinglePicker">Jingle:</label>
+        <select id="jinglePicker" class="jingle-picker" aria-label="Select Jingle Take">
+          <option value="">Public mode (Drop file to load)</option>
+        </select>
+      </div>
+    </div>
+
     <main class="main-grid">
       <section id="keycapGrid" class="keycap-grid" aria-label="Keyboard pads">
+        <!-- Track 1: Kick -->
         <div class="keycap-row" data-track="1">
-          <div class="keycap" data-key="Digit1" data-action="launch" data-track="1"><kbd>1</kbd><span>Kick</span></div>
+          <div class="keycap launch-key" data-key="Digit1" data-action="launch" data-track="1"><kbd>1</kbd><span>Launch Kick</span></div>
           <div class="keycap" data-key="KeyD" data-action="hit" data-track="1" data-pad="kick"><kbd>D</kbd><span>Kick</span></div>
         </div>
+
+        <!-- Track 2: Snare -->
         <div class="keycap-row" data-track="2">
-          <div class="keycap" data-key="Digit2" data-action="launch" data-track="2"><kbd>2</kbd><span>Snare</span></div>
+          <div class="keycap launch-key" data-key="Digit2" data-action="launch" data-track="2"><kbd>2</kbd><span>Launch Snare</span></div>
           <div class="keycap" data-key="KeyJ" data-action="hit" data-track="2" data-pad="snare"><kbd>J</kbd><span>Snare</span></div>
         </div>
+
+        <!-- Track 3: Hats -->
         <div class="keycap-row" data-track="3">
-          <div class="keycap" data-key="Digit3" data-action="launch" data-track="3"><kbd>3</kbd><span>Hats</span></div>
+          <div class="keycap launch-key" data-key="Digit3" data-action="launch" data-track="3"><kbd>3</kbd><span>Launch Hats</span></div>
           <div class="keycap" data-key="KeyS" data-action="hit" data-track="3" data-pad="hatClosed"><kbd>S</kbd><span>Hat</span></div>
           <div class="keycap" data-key="KeyF" data-action="hit" data-track="3" data-pad="hatOpen"><kbd>F</kbd><span>Open Hat</span></div>
           <div class="keycap" data-key="KeyH" data-action="hit" data-track="3" data-pad="ride"><kbd>H</kbd><span>Ride</span></div>
         </div>
+
+        <!-- Track 4: Perc -->
         <div class="keycap-row" data-track="4">
-          <div class="keycap" data-key="Digit4" data-action="launch" data-track="4"><kbd>4</kbd><span>Perc</span></div>
+          <div class="keycap launch-key" data-key="Digit4" data-action="launch" data-track="4"><kbd>4</kbd><span>Launch Perc</span></div>
           <div class="keycap" data-key="KeyA" data-action="hit" data-track="4" data-pad="clap"><kbd>A</kbd><span>Clap</span></div>
           <div class="keycap" data-key="KeyK" data-action="hit" data-track="4" data-pad="tom"><kbd>K</kbd><span>Tom</span></div>
           <div class="keycap" data-key="KeyL" data-action="hit" data-track="4" data-pad="tink"><kbd>L</kbd><span>Tink</span></div>
         </div>
+
+        <!-- Track 5: Bass -->
         <div class="keycap-row" data-track="5">
-          <div class="keycap" data-key="Digit5" data-action="launch" data-track="5"><kbd>5</kbd><span>Bass</span></div>
+          <div class="keycap launch-key" data-key="Digit5" data-action="launch" data-track="5"><kbd>5</kbd><span>Launch Bass</span></div>
           <div class="keycap" data-key="KeyG" data-action="hit" data-track="5" data-pad="boom"><kbd>G</kbd><span>Boom</span></div>
         </div>
-        <div class="keycap-row" data-track="6">
-          <div class="keycap" data-key="Digit6" data-action="launch" data-track="6"><kbd>6</kbd><span>Keys</span></div>
-          <div class="keycap piano" data-key="KeyQ" data-action="hit" data-track="6" data-pad="piano" data-note="C" data-sharp="false"><kbd>Q</kbd><span>C</span></div>
-          <div class="keycap piano sharp" data-key="KeyW" data-action="hit" data-track="6" data-pad="piano" data-note="C" data-sharp="true"><kbd>W</kbd><span>C♯</span></div>
-          <div class="keycap piano" data-key="KeyE" data-action="hit" data-track="6" data-pad="piano" data-note="D" data-sharp="false"><kbd>E</kbd><span>D</span></div>
-          <div class="keycap piano sharp" data-key="KeyR" data-action="hit" data-track="6" data-pad="piano" data-note="D" data-sharp="true"><kbd>R</kbd><span>D♯</span></div>
-          <div class="keycap piano" data-key="KeyT" data-action="hit" data-track="6" data-pad="piano" data-note="E" data-sharp="false"><kbd>T</kbd><span>E</span></div>
-          <div class="keycap piano" data-key="KeyY" data-action="hit" data-track="6" data-pad="piano" data-note="F" data-sharp="false"><kbd>Y</kbd><span>F</span></div>
-          <div class="keycap piano sharp" data-key="KeyU" data-action="hit" data-track="6" data-pad="piano" data-note="F" data-sharp="true"><kbd>U</kbd><span>F♯</span></div>
-          <div class="keycap piano" data-key="KeyI" data-action="hit" data-track="6" data-pad="piano" data-note="G" data-sharp="false"><kbd>I</kbd><span>G</span></div>
-          <div class="keycap piano sharp" data-key="KeyO" data-action="hit" data-track="6" data-pad="piano" data-note="G" data-sharp="true"><kbd>O</kbd><span>G♯</span></div>
-          <div class="keycap piano" data-key="KeyP" data-action="hit" data-track="6" data-pad="piano" data-note="A" data-sharp="false"><kbd>P</kbd><span>A</span></div>
-          <div class="keycap piano sharp" data-key="BracketLeft" data-action="hit" data-track="6" data-pad="piano" data-note="A" data-sharp="true"><kbd>[</kbd><span>A♯</span></div>
-          <div class="keycap piano" data-key="BracketRight" data-action="hit" data-track="6" data-pad="piano" data-note="B" data-sharp="false"><kbd>]</kbd><span>B</span></div>
-          <div class="keycap piano" data-key="Backslash" data-action="hit" data-track="6" data-pad="piano" data-note="C" data-sharp="false" data-octave="1"><kbd>\\</kbd><span>C²</span></div>
+
+        <!-- Track 6: Keys (QWERTYUI = C D E F G A B C², Shift = Sharp) -->
+        <div class="keycap-row piano-row" data-track="6">
+          <div class="keycap launch-key" data-key="Digit6" data-action="launch" data-track="6"><kbd>6</kbd><span>Launch Keys</span></div>
+          <div class="keycap piano" data-key="KeyQ" data-action="hit" data-track="6" data-pad="piano" data-note="c1" data-sharp-note="c1s"><kbd>Q</kbd><span>C</span><small>⇧C♯</small></div>
+          <div class="keycap piano" data-key="KeyW" data-action="hit" data-track="6" data-pad="piano" data-note="d1" data-sharp-note="d1s"><kbd>W</kbd><span>D</span><small>⇧D♯</small></div>
+          <div class="keycap piano" data-key="KeyE" data-action="hit" data-track="6" data-pad="piano" data-note="e1" data-sharp-note="e1"><kbd>E</kbd><span>E</span></div>
+          <div class="keycap piano" data-key="KeyR" data-action="hit" data-track="6" data-pad="piano" data-note="f1" data-sharp-note="f1s"><kbd>R</kbd><span>F</span><small>⇧F♯</small></div>
+          <div class="keycap piano" data-key="KeyT" data-action="hit" data-track="6" data-pad="piano" data-note="g1" data-sharp-note="g1s"><kbd>T</kbd><span>G</span><small>⇧G♯</small></div>
+          <div class="keycap piano" data-key="KeyY" data-action="hit" data-track="6" data-pad="piano" data-note="a1" data-sharp-note="a1s"><kbd>Y</kbd><span>A</span><small>⇧A♯</small></div>
+          <div class="keycap piano" data-key="KeyU" data-action="hit" data-track="6" data-pad="piano" data-note="b1" data-sharp-note="b1"><kbd>U</kbd><span>B</span></div>
+          <div class="keycap piano" data-key="KeyI" data-action="hit" data-track="6" data-pad="piano" data-note="c2" data-sharp-note="c2"><kbd>I</kbd><span>C²</span></div>
         </div>
+
+        <!-- Track 7: Bed -->
         <div class="keycap-row" data-track="7">
-          <div class="keycap" data-key="Digit7" data-action="launch" data-track="7"><kbd>7</kbd><span>Bed</span></div>
+          <div class="keycap launch-key" data-key="Digit7" data-action="launch" data-track="7"><kbd>7</kbd><span>Launch Bed</span></div>
           <div class="keycap" data-key="KeyV" data-action="hit" data-track="7" data-pad="quarterFlip"><kbd>V</kbd><span>¼ Flip</span></div>
         </div>
+
+        <!-- Track 8: Jingle -->
         <div class="keycap-row" data-track="8">
-          <div class="keycap" data-key="Digit8" data-action="launch" data-track="8"><kbd>8</kbd><span>Jingle</span></div>
+          <div class="keycap launch-key" data-key="Digit8" data-action="launch" data-track="8"><kbd>8</kbd><span>Launch Jingle</span></div>
           <div class="keycap" data-key="KeyZ" data-action="launch" data-track="8" data-kind="hook"><kbd>Z</kbd><span>Hook</span></div>
-          <div class="keycap" data-key="KeyX" data-action="launch" data-track="8" data-kind="full"><kbd>X</kbd><span>Full</span></div>
-          <div class="keycap" data-key="KeyC" data-action="none"><kbd>C</kbd><span>—</span></div>
-          <div class="keycap" data-key="KeyB" data-action="none"><kbd>B</kbd><span>—</span></div>
-          <div class="keycap" data-key="KeyN" data-action="none"><kbd>N</kbd><span>—</span></div>
-          <div class="keycap" data-key="KeyM" data-action="none"><kbd>M</kbd><span>—</span></div>
+          <div class="keycap" data-key="KeyX" data-action="launch" data-track="8" data-kind="full"><kbd>X</kbd><span>Full Take</span></div>
+          <div class="keycap slot-free" data-key="KeyC" data-action="none"><kbd>C</kbd><span>—</span></div>
+          <div class="keycap slot-free" data-key="KeyB" data-action="none"><kbd>B</kbd><span>—</span></div>
+          <div class="keycap slot-free" data-key="KeyN" data-action="none"><kbd>N</kbd><span>—</span></div>
+          <div class="keycap slot-free" data-key="KeyM" data-action="none"><kbd>M</kbd><span>—</span></div>
         </div>
       </section>
 
       <aside id="mixer" class="mixer" aria-label="8-track mixer">
         <div class="mixer-header">
-          <div class="mixer-track master" data-track="master">
-            <div class="strip-label">MIX</div>
-            <div class="strip-portrait" id="portraitMaster"></div>
-            <div class="strip-name">Form</div>
-            <div class="strip-role">Architect</div>
+          <div class="mixer-track master" data-track="master" tabindex="0" title="Focused, observant, rarely speaks but always orchestrating">
+            <div class="strip-header-row">
+              <span class="strip-label">MASTER / MIX</span>
+              <span class="strip-musician-tag">Form</span>
+            </div>
+            <div class="strip-body-row">
+              <div class="strip-portrait" id="portraitMaster" role="img" aria-label="Form"></div>
+              <div class="strip-info">
+                <div class="strip-name">Form</div>
+                <div class="strip-role">Architect</div>
+              </div>
+            </div>
             <div class="strip-fader">
               <input type="range" id="masterFader" min="0" max="100" value="80" aria-label="Master level">
             </div>
             <div class="strip-value" id="masterValue">80%</div>
           </div>
         </div>
+
         <div class="mixer-tracks" id="mixerTracks"></div>
       </aside>
     </main>
@@ -114,7 +145,7 @@
 
   <dialog id="bandDialog" class="band-dialog">
     <div class="band-dialog-content">
-      <h2>ScriptHammer — the house band</h2>
+      <h2>ScriptHammer, the house band</h2>
       <button class="close-btn" id="closeBandDialog" aria-label="Close">&times;</button>
       <ul id="bandList" class="band-list"></ul>
     </div>

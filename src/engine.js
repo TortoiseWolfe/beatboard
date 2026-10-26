@@ -1,17 +1,15 @@
 /**
- * ENGINE — AudioContext, tracks, master, lookahead clock, quantized launch.
+ * ENGINE — AudioContext, 8 track GainNodes, master gain, limiter, lookahead clock, quantized launch.
  * Samples decoded once into AudioBuffers; synthesized drums via Kit.
  * Lookahead: ~25ms timer, 100ms window, scheduled on AudioContext.currentTime.
  */
 import { Kit } from './kit.js';
-import { getDefaultPreset } from './patterns.js';
-import { computeAudible, resetMixer } from './mixer.js';
-import { loadKeymap, loadLayer, isTextInputFocused, createLearnMode } from './keymap.js';
-import { getMusicianForTrack } from './band.js';
+import { getPreset, getDefaultPreset, presetNames } from './patterns.js';
+import { computeAudible, resetMixer, clearAllSolo } from './mixer.js';
+import { loadKeymap, saveKeymap, loadLayer, saveLayer, isTextInputFocused, createLearnMode, LAYERS } from './keymap.js';
 
-const LOOKAHEAD_MS = 25;
-const SCHEDULE_WINDOW_MS = 100;
 const TIMER_INTERVAL_MS = 25;
+const SCHEDULE_WINDOW_MS = 100;
 
 export class Engine {
   constructor() {
@@ -19,18 +17,16 @@ export class Engine {
     this.kit = null;
     this.masterGain = null;
     this.limiter = null;
-    this.tracks = [];
+    this.trackGains = [];
     this.tempo = 110;
     this.isPlaying = false;
     this.currentStep = 0;
     this.nextTickTime = 0;
-    this.timerId = null;
     this.lookaheadTimerId = null;
     this.stepDuration = 0;
     this.beatDuration = 0;
     this.barDuration = 0;
     this.patterns = getDefaultPreset();
-    this.scheduledNotes = new Map();
     this.jingleBuffers = new Map();
     this.pianoBuffers = new Map();
     this.bedBuffers = new Map();
@@ -40,7 +36,12 @@ export class Engine {
     this.learnMode = createLearnMode((code, binding) => this.onLearnComplete(code, binding));
     this.masterLevel = 0.8;
     this.presetIndex = 0;
-    this.presetNames = ['Hip Hop', 'Basic Rock', 'Disco', 'Jazz', 'Waltz'];
+    this.presetNames = presetNames;
+    this.selectedJingleFile = null;
+    this.activeJingleSource = null;
+    this.activeBedSource = null;
+    this.lastHitPad = 'Ready';
+
     this.onTrackLaunchCallbacks = [];
     this.onTransportCallbacks = [];
     this.onTempoCallbacks = [];
@@ -48,13 +49,20 @@ export class Engine {
     this.onMasterLevelCallbacks = [];
     this.onPresetChangeCallbacks = [];
     this.onLearnCallbacks = [];
+    this.onLayerChangeCallbacks = [];
+    this.onLastPadCallbacks = [];
+
     this.jingleManifest = null;
     this.jingleLocalManifest = null;
+    this.updateTiming();
   }
 
   async init() {
-    this.actx = new (window.AudioContext || window.webkitAudioContext)();
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    this.actx = new AudioCtx();
     this.kit = new Kit(this.actx);
+
     this.masterGain = this.actx.createGain();
     this.masterGain.gain.value = this.masterLevel;
 
@@ -64,11 +72,27 @@ export class Engine {
 
     this.masterGain.connect(this.limiter);
     this.limiter.connect(this.actx.destination);
-    this.kit.connect(this.masterGain);
+
+    // One GainNode per track into master gain
+    this.trackGains = [];
+    for (let i = 0; i < 8; i++) {
+      const g = this.actx.createGain();
+      g.gain.value = (this.patterns[i]?.volume ?? 0.7);
+      g.connect(this.masterGain);
+      this.trackGains.push(g);
+    }
+    this.updateTrackGains();
 
     await this.loadSamples();
     this.updateTiming();
     this.startLookaheadClock();
+  }
+
+  ensureAudioContext() {
+    if (!this.actx) return;
+    if (this.actx.state === 'suspended') {
+      this.actx.resume().catch(console.error);
+    }
   }
 
   makeLimiterCurve() {
@@ -85,6 +109,18 @@ export class Engine {
     return curve;
   }
 
+  updateTrackGains() {
+    if (!this.actx || !this.trackGains.length) return;
+    const audible = computeAudible(this.patterns);
+    const now = this.actx.currentTime;
+    this.patterns.forEach((track, i) => {
+      const isAudible = audible[i];
+      const level = track.level ?? track.volume ?? 0.7;
+      const target = isAudible ? level : 0;
+      this.trackGains[i].gain.setValueAtTime(target, now);
+    });
+  }
+
   async loadSamples() {
     const pianoNotes = [
       'a1', 'a1s', 'b1', 'c1', 'c1s', 'c2', 'd1', 'd1s', 'e1', 'f1', 'f1s', 'g1', 'g1s'
@@ -93,12 +129,12 @@ export class Engine {
     for (const note of pianoNotes) {
       try {
         const resp = await fetch(`assets/piano/${note}.mp3`);
-        const arrayBuffer = await resp.arrayBuffer();
-        const buffer = await this.actx.decodeAudioData(arrayBuffer);
-        this.pianoBuffers.set(note, buffer);
-      } catch (e) {
-        console.warn(`Failed to load piano/${note}.mp3`, e);
-      }
+        if (resp.ok) {
+          const arrayBuffer = await resp.arrayBuffer();
+          const buffer = await this.actx.decodeAudioData(arrayBuffer);
+          this.pianoBuffers.set(note, buffer);
+        }
+      } catch (_) {}
     }
 
     const bedFiles = [
@@ -113,21 +149,21 @@ export class Engine {
     for (const f of bedFiles) {
       try {
         const resp = await fetch(f.url);
-        const arrayBuffer = await resp.arrayBuffer();
-        const buffer = await this.actx.decodeAudioData(arrayBuffer);
-        this.bedBuffers.set(f.id, buffer);
-      } catch (e) {
-        console.warn(`Failed to load ${f.url}`, e);
-      }
+        if (resp.ok) {
+          const arrayBuffer = await resp.arrayBuffer();
+          const buffer = await this.actx.decodeAudioData(arrayBuffer);
+          this.bedBuffers.set(f.id, buffer);
+        }
+      } catch (_) {}
     }
 
     try {
       const resp = await fetch('assets/fx/quarter-flip.mp3');
-      const arrayBuffer = await resp.arrayBuffer();
-      this.quarterFlipBuffer = await this.actx.decodeAudioData(arrayBuffer);
-    } catch (e) {
-      console.warn('Failed to load quarter-flip.mp3', e);
-    }
+      if (resp.ok) {
+        const arrayBuffer = await resp.arrayBuffer();
+        this.quarterFlipBuffer = await this.actx.decodeAudioData(arrayBuffer);
+      }
+    } catch (_) {}
 
     await this.loadJingleManifests();
   }
@@ -135,13 +171,15 @@ export class Engine {
   async loadJingleManifests() {
     try {
       const resp = await fetch('assets/jingle/manifest.json');
-      this.jingleManifest = await resp.json();
+      if (resp.ok) this.jingleManifest = await resp.json();
     } catch (_) {
       this.jingleManifest = { takes: [] };
     }
     try {
       const resp = await fetch('assets/jingle-local/manifest.json');
-      this.jingleLocalManifest = await resp.json();
+      if (resp.ok) {
+        this.jingleLocalManifest = await resp.json();
+      }
     } catch (_) {
       this.jingleLocalManifest = null;
     }
@@ -149,21 +187,29 @@ export class Engine {
 
   getJingleTakes() {
     const takes = [];
-    if (this.jingleManifest?.takes) takes.push(...this.jingleManifest.takes);
-    if (this.jingleLocalManifest?.takes) takes.push(...this.jingleLocalManifest.takes);
+    if (this.jingleLocalManifest?.takes?.length) {
+      takes.push(...this.jingleLocalManifest.takes);
+    } else if (this.jingleManifest?.takes?.length) {
+      takes.push(...this.jingleManifest.takes);
+    }
     return takes;
   }
 
   async loadJingleTake(file) {
+    if (this.jingleBuffers.has(file)) {
+      return this.jingleBuffers.get(file);
+    }
     const base = this.jingleLocalManifest ? 'assets/jingle-local/' : 'assets/jingle/';
     try {
       const resp = await fetch(base + file);
-      const arrayBuffer = await resp.arrayBuffer();
-      return await this.actx.decodeAudioData(arrayBuffer);
-    } catch (e) {
-      console.warn(`Failed to load jingle ${file}`, e);
-      return null;
-    }
+      if (resp.ok) {
+        const arrayBuffer = await resp.arrayBuffer();
+        const buffer = await this.actx.decodeAudioData(arrayBuffer);
+        this.jingleBuffers.set(file, buffer);
+        return buffer;
+      }
+    } catch (_) {}
+    return null;
   }
 
   updateTiming() {
@@ -178,7 +224,7 @@ export class Engine {
   }
 
   tick() {
-    if (!this.isPlaying) return;
+    if (!this.isPlaying || !this.actx) return;
     const now = this.actx.currentTime;
     const windowEnd = now + SCHEDULE_WINDOW_MS / 1000;
 
@@ -196,112 +242,61 @@ export class Engine {
     const step = this.currentStep;
     const audible = computeAudible(this.patterns);
 
-    this.patterns.forEach((track, i) => {
-      if (!audible[i]) return;
-      if (track.pattern[step] !== 1) return;
-      this.playTrackSound(i, track, playTime, track.level);
-    });
+    for (let i = 0; i < 4; i++) {
+      const track = this.patterns[i];
+      if (!track || !track.pattern) continue;
+      if (track.pattern[step] === 1 && audible[i]) {
+        this.playSequencedDrum(i, playTime);
+      }
+    }
 
     this.onStepCallbacks.forEach(cb => cb(step, playTime));
   }
 
-  playTrackSound(trackIndex, track, when, level) {
-    const audible = computeAudible(this.patterns);
-    if (!audible[trackIndex]) return;
+  playSequencedDrum(trackIndex, when) {
+    if (!this.actx || !this.kit) return;
+    const dest = this.trackGains[trackIndex];
+    if (!dest) return;
 
-    const gain = this.actx.createGain();
-    gain.gain.value = level * (track.level ?? 1);
-    gain.connect(this.kit.masterGain);
+    // Connect kit voice temporarily into track gain
+    const originalMasterGain = this.kit.masterGain;
+    this.kit.masterGain = dest;
 
     switch (trackIndex) {
-      case 0: this.kit.kick(when, level * (track.level ?? 1)); break;
-      case 1: this.kit.snare(when, level * (track.level ?? 1)); break;
-      case 2:
-        if (track.pad === 'hatOpen') this.kit.hatOpen(when, level * (track.level ?? 1));
-        else if (track.pad === 'ride') this.kit.ride(when, level * (track.level ?? 1));
-        else this.kit.hatClosed(when, level * (track.level ?? 1));
-        break;
-      case 3:
-        if (track.pad === 'tom') this.kit.tom(when, level * (track.level ?? 1));
-        else if (track.pad === 'tink') this.kit.tink(when, level * (track.level ?? 1));
-        else this.kit.clap(when, level * (track.level ?? 1));
-        break;
-      case 4:
-        if (track.pad === 'boom') this.kit.boom(when, level * (track.level ?? 1));
-        else this.playBassSample(track.pad, when, gain);
-        break;
-      case 5:
-        this.playPianoNote(track.note, track.sharp, track.octave || 0, when, gain);
-        break;
-      case 6:
-        this.playBedSample(track.pad, when, gain);
-        break;
-      case 7:
-        this.playJingle(track.kind, when, gain);
-        break;
+      case 0: this.kit.kick(when, 1); break;
+      case 1: this.kit.snare(when, 1); break;
+      case 2: this.kit.hatClosed(when, 1); break;
+      case 3: this.kit.clap(when, 1); break;
     }
-  }
-
-  playBassSample(pad, when, gain) {
-    const buffer = this.bedBuffers.get(pad === 'acid' ? 'acid1' : 'acid2');
-    if (!buffer) return;
-    const src = this.actx.createBufferSource();
-    src.buffer = buffer;
-    src.connect(gain);
-    src.start(when);
-  }
-
-  playPianoNote(note, sharp, octave, when, gain) {
-    const noteName = `${note}${sharp ? 's' : ''}${octave + 1}`;
-    const buffer = this.pianoBuffers.get(noteName);
-    if (!buffer) return;
-    const src = this.actx.createBufferSource();
-    src.buffer = buffer;
-    src.connect(gain);
-    src.start(when);
-  }
-
-  playBedSample(pad, when, gain) {
-    const buffer = this.bedBuffers.get(pad);
-    if (!buffer) return;
-    const src = this.actx.createBufferSource();
-    src.buffer = buffer;
-    src.loop = true;
-    src.connect(gain);
-    src.start(when);
-    return src;
-  }
-
-  playJingle(kind, when, gain) {
-    const takes = this.getJingleTakes().filter(t => t.kind === kind);
-    if (!takes.length) return;
-    const take = takes[0];
-    this.loadJingleTake(take.file).then(buffer => {
-      if (!buffer) return;
-      const src = this.actx.createBufferSource();
-      src.buffer = buffer;
-      src.connect(gain);
-      src.start(this.actx.currentTime + 0.01);
-    });
+    this.kit.masterGain = originalMasterGain;
   }
 
   async handleKeyDown(e) {
+    this.ensureAudioContext();
     if (isTextInputFocused()) return;
+
     if (this.learnMode.isActive()) {
       this.learnMode.handleKey(e.code, e.shiftKey);
       e.preventDefault();
       return;
     }
 
-    const binding = this.keymap[this.currentLayer][e.code];
+    if (e.key === '?' || (e.shiftKey && e.code === 'Slash')) {
+      e.preventDefault();
+      const dialog = document.getElementById('bandDialog');
+      if (dialog) dialog.showModal();
+      return;
+    }
+
+    const binding = this.keymap[this.currentLayer]?.[e.code];
     if (!binding) return;
 
     switch (binding.action) {
       case 'hit':
-        this.playHit(binding.track, binding.pad, binding);
+        this.playHit(binding.track, binding.pad, binding, e.shiftKey);
         break;
       case 'launch':
-        this.launchTrack(binding.track, binding.kind, e.shiftKey);
+        this.launchOrStopTrack(binding.track, binding.kind, e.shiftKey);
         break;
       case 'transport':
         this.toggleTransport();
@@ -328,7 +323,13 @@ export class Engine {
         this.toggleMute(binding.track);
         break;
       case 'solo':
-        this.toggleSolo(binding.track);
+        if (e.shiftKey) {
+          this.patterns = clearAllSolo(this.patterns);
+          this.updateTrackGains();
+          this.onPresetChangeCallbacks.forEach(cb => cb(this.presetNames[this.presetIndex], this.patterns));
+        } else {
+          this.toggleSolo(binding.track);
+        }
         break;
       case 'level':
         this.adjustLevel(binding.track, e.shiftKey ? -binding.delta : binding.delta);
@@ -346,7 +347,7 @@ export class Engine {
   setLayer(layer) {
     this.currentLayer = layer;
     saveLayer(layer);
-    this.onLayerChangeCallbacks?.forEach(cb => cb(layer));
+    this.onLayerChangeCallbacks.forEach(cb => cb(layer));
   }
 
   toggleLearnMode() {
@@ -359,89 +360,220 @@ export class Engine {
     this.onLearnCallbacks.forEach(cb => cb(false, code, binding));
   }
 
-  playHit(trackIndex, pad, binding) {
-    const track = this.patterns[trackIndex - 1];
-    if (!track) return;
-    const when = this.actx.currentTime;
-    const gain = this.actx.createGain();
-    gain.gain.value = track.level ?? 0.7;
-    gain.connect(this.kit.masterGain);
+  setLastHitPad(name) {
+    this.lastHitPad = name;
+    this.onLastPadCallbacks.forEach(cb => cb(name));
+  }
 
-    switch (trackIndex) {
-      case 1: this.kit.kick(when, gain.gain.value); break;
-      case 2: this.kit.snare(when, gain.gain.value); break;
+  playHit(trackNum, pad, binding = {}, shiftKey = false) {
+    this.ensureAudioContext();
+    if (!this.actx || !this.kit) return;
+    const trackIndex = trackNum - 1;
+    const dest = this.trackGains[trackIndex] || this.masterGain;
+    const when = this.actx.currentTime;
+
+    const originalMasterGain = this.kit.masterGain;
+    this.kit.masterGain = dest;
+
+    switch (trackNum) {
+      case 1:
+        this.kit.kick(when, 1);
+        this.setLastHitPad('Kick');
+        break;
+      case 2:
+        this.kit.snare(when, 1);
+        this.setLastHitPad('Snare');
+        break;
       case 3:
-        if (pad === 'hatOpen') this.kit.hatOpen(when, gain.gain.value);
-        else if (pad === 'ride') this.kit.ride(when, gain.gain.value);
-        else this.kit.hatClosed(when, gain.gain.value);
+        if (pad === 'hatOpen') {
+          this.kit.hatOpen(when, 1);
+          this.setLastHitPad('Open Hat');
+        } else if (pad === 'ride') {
+          this.kit.ride(when, 1);
+          this.setLastHitPad('Ride');
+        } else {
+          this.kit.hatClosed(when, 1);
+          this.setLastHitPad('Closed Hat');
+        }
         break;
       case 4:
-        if (pad === 'tom') this.kit.tom(when, gain.gain.value);
-        else if (pad === 'tink') this.kit.tink(when, gain.gain.value);
-        else this.kit.clap(when, gain.gain.value);
+        if (pad === 'tom') {
+          this.kit.tom(when, 1);
+          this.setLastHitPad('Tom');
+        } else if (pad === 'tink') {
+          this.kit.tink(when, 1);
+          this.setLastHitPad('Tink');
+        } else {
+          this.kit.clap(when, 1);
+          this.setLastHitPad('Clap');
+        }
         break;
       case 5:
-        if (pad === 'boom') this.kit.boom(when, gain.gain.value);
+        if (pad === 'boom') {
+          this.kit.boom(when, 1);
+          this.setLastHitPad('Sub Boom');
+        } else {
+          this.playBassSample(pad, when, dest);
+          this.setLastHitPad('Acid Bass');
+        }
         break;
-      case 6:
-        this.playPianoNote(binding.note, binding.sharp, binding.octave || 0, when, gain);
+      case 6: {
+        const note = (shiftKey || binding.sharp) ? (binding.sharpNote || `${binding.note}s`) : (binding.note || 'c1');
+        this.playPianoNote(note, when, dest);
+        this.setLastHitPad(`Piano ${note.toUpperCase()}`);
         break;
+      }
       case 7:
-        if (pad === 'quarterFlip' && this.quarterFlipBuffer) {
-          const src = this.actx.createBufferSource();
-          src.buffer = this.quarterFlipBuffer;
-          src.connect(gain);
-          src.start(when);
+        if (pad === 'quarterFlip' || !pad) {
+          this.playQuarterFlip(when, dest);
+          this.setLastHitPad('Quarter Flip');
         }
         break;
       case 8:
+        if (binding.kind === 'hook') {
+          this.playJingleTakeByKind('hook', dest);
+          this.setLastHitPad('Jingle Hook');
+        } else if (binding.kind === 'full') {
+          this.playJingleTakeByKind('song', dest);
+          this.setLastHitPad('Jingle Full');
+        }
         break;
+    }
+
+    this.kit.masterGain = originalMasterGain;
+  }
+
+  playPianoNote(noteName, when, dest) {
+    const key = noteName.toLowerCase();
+    const buffer = this.pianoBuffers.get(key);
+    if (!buffer) return;
+    const src = this.actx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(dest);
+    src.start(when);
+  }
+
+  playQuarterFlip(when, dest) {
+    if (!this.quarterFlipBuffer) return;
+    const src = this.actx.createBufferSource();
+    src.buffer = this.quarterFlipBuffer;
+    src.connect(dest);
+    src.start(when);
+  }
+
+  playBassSample(pad, when, dest) {
+    const key = pad === 'acid2' ? 'acid2' : 'acid1';
+    const buffer = this.bedBuffers.get(key);
+    if (!buffer) return;
+    const src = this.actx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(dest);
+    src.start(when);
+  }
+
+  playBedLoop(when, dest) {
+    if (this.activeBedSource) {
+      try { this.activeBedSource.stop(); } catch (_) {}
+      this.activeBedSource = null;
+    }
+    const track = this.patterns[6];
+    const buffer = track?.userBuffer || this.bedBuffers.get('bed1');
+    if (!buffer) return;
+    const src = this.actx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    src.connect(dest);
+    src.start(when);
+    this.activeBedSource = src;
+  }
+
+  stopBedLoop() {
+    if (this.activeBedSource) {
+      try { this.activeBedSource.stop(); } catch (_) {}
+      this.activeBedSource = null;
+    }
+  }
+
+  async playJingleTakeByKind(kind, dest) {
+    if (this.activeJingleSource) {
+      try { this.activeJingleSource.stop(); } catch (_) {}
+      this.activeJingleSource = null;
+      return;
+    }
+    const takes = this.getJingleTakes();
+    let take = takes.find(t => t.file === this.selectedJingleFile);
+    if (!take) {
+      take = takes.find(t => t.kind === kind) || takes[0];
+    }
+    if (!take) return;
+
+    const buffer = await this.loadJingleTake(take.file);
+    if (!buffer || !this.actx) return;
+    const src = this.actx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(dest);
+    src.onended = () => {
+      if (this.activeJingleSource === src) this.activeJingleSource = null;
+    };
+    src.start(this.actx.currentTime + 0.01);
+    this.activeJingleSource = src;
+  }
+
+  launchOrStopTrack(trackNum, kind, immediate) {
+    const track = this.patterns[trackNum - 1];
+    if (!track) return;
+    if (track.launched) {
+      this.stopTrack(trackNum, immediate);
+    } else {
+      this.launchTrack(trackNum, kind, immediate);
     }
   }
 
   launchTrack(trackNum, kind, immediate) {
     const track = this.patterns[trackNum - 1];
     if (!track) return;
+    const when = immediate ? (this.actx?.currentTime || 0) : this.quantizeToNextBar();
 
-    const when = immediate ? this.actx.currentTime : this.quantizeToNextBar();
     track.launched = true;
     track.launchKind = kind;
-    track.launchTime = when;
+    track.muted = false;
+    this.updateTrackGains();
 
-    if (trackNum <= 4) {
-      track.muted = false;
-    } else if (trackNum === 7) {
-      track.muted = false;
-      if (kind === 'bed') {
-        track.bedSource = this.playBedSample('bed1', when, this.kit.masterGain);
-      }
+    if (trackNum === 7) {
+      this.playBedLoop(when, this.trackGains[6]);
     } else if (trackNum === 8) {
-      track.muted = false;
-      this.playJingle(kind || 'hook', when, this.kit.masterGain);
+      this.playJingleTakeByKind(kind || 'hook', this.trackGains[7]);
     }
 
-    this.onTrackLaunchCallbacks.forEach(cb => cb(trackNum, when, immediate));
+    this.onTrackLaunchCallbacks.forEach(cb => cb(trackNum, when, true));
   }
 
-  stopTrack(trackNum) {
+  stopTrack(trackNum, immediate) {
     const track = this.patterns[trackNum - 1];
     if (!track) return;
     track.launched = false;
     track.muted = true;
-    if (track.bedSource) {
-      track.bedSource.stop();
-      track.bedSource = null;
+    this.updateTrackGains();
+
+    if (trackNum === 7) {
+      this.stopBedLoop();
+    } else if (trackNum === 8) {
+      if (this.activeJingleSource) {
+        try { this.activeJingleSource.stop(); } catch (_) {}
+        this.activeJingleSource = null;
+      }
     }
+
     this.onTrackLaunchCallbacks.forEach(cb => cb(trackNum, 0, false));
   }
 
-  quantizeToNextBar() {
-    const now = this.actx.currentTime;
-    const elapsed = (now - this.nextTickTime) % this.barDuration;
-    return now + (this.barDuration - elapsed) + 0.001;
+  quantizeToNextBar(currentTime = (this.actx?.currentTime || 0)) {
+    const elapsed = (currentTime - this.nextTickTime) % this.barDuration;
+    return currentTime + (this.barDuration - elapsed) + 0.001;
   }
 
   toggleTransport() {
+    this.ensureAudioContext();
     if (this.isPlaying) {
       this.stop();
     } else {
@@ -450,9 +582,9 @@ export class Engine {
   }
 
   start() {
-    if (this.actx.state === 'suspended') this.actx.resume();
+    this.ensureAudioContext();
     this.isPlaying = true;
-    this.nextTickTime = this.actx.currentTime + 0.01;
+    this.nextTickTime = (this.actx?.currentTime || 0) + 0.01;
     this.currentStep = 0;
     this.onTransportCallbacks.forEach(cb => cb(true));
   }
@@ -464,15 +596,18 @@ export class Engine {
 
   stopAll() {
     this.stop();
-    this.patterns.forEach(t => {
+    this.patterns.forEach((t, i) => {
       t.launched = false;
       t.muted = true;
-      if (t.bedSource) {
-        t.bedSource.stop();
-        t.bedSource = null;
-      }
     });
+    this.stopBedLoop();
+    if (this.activeJingleSource) {
+      try { this.activeJingleSource.stop(); } catch (_) {}
+      this.activeJingleSource = null;
+    }
+    this.updateTrackGains();
     this.currentStep = 0;
+    this.onPresetChangeCallbacks.forEach(cb => cb(this.presetNames[this.presetIndex], this.patterns));
   }
 
   changeTempo(delta) {
@@ -482,8 +617,10 @@ export class Engine {
   }
 
   changeMasterLevel(delta) {
-    this.masterLevel = Math.max(0, Math.min(1, this.masterLevel + delta));
-    if (this.masterGain) this.masterGain.gain.value = this.masterLevel;
+    this.masterLevel = Math.max(0, Math.min(1, Math.round((this.masterLevel + delta) * 100) / 100));
+    if (this.masterGain && this.actx) {
+      this.masterGain.gain.setValueAtTime(this.masterLevel, this.actx.currentTime);
+    }
     this.onMasterLevelCallbacks.forEach(cb => cb(this.masterLevel));
   }
 
@@ -491,11 +628,13 @@ export class Engine {
     this.presetIndex = (this.presetIndex + delta + this.presetNames.length) % this.presetNames.length;
     const name = this.presetNames[this.presetIndex];
     this.patterns = getPreset(name);
+    this.updateTrackGains();
     this.onPresetChangeCallbacks.forEach(cb => cb(name, this.patterns));
   }
 
   resetMixer() {
     this.patterns = resetMixer(this.patterns);
+    this.updateTrackGains();
     this.onPresetChangeCallbacks.forEach(cb => cb(this.presetNames[this.presetIndex], this.patterns));
   }
 
@@ -504,6 +643,7 @@ export class Engine {
     if (!track) return;
     track.muted = !track.muted;
     if (track.muted) track.solo = false;
+    this.updateTrackGains();
     this.onPresetChangeCallbacks.forEach(cb => cb(this.presetNames[this.presetIndex], this.patterns));
   }
 
@@ -512,13 +652,17 @@ export class Engine {
     if (!track) return;
     track.solo = !track.solo;
     if (track.solo) track.muted = false;
+    this.updateTrackGains();
     this.onPresetChangeCallbacks.forEach(cb => cb(this.presetNames[this.presetIndex], this.patterns));
   }
 
   adjustLevel(trackNum, delta) {
     const track = this.patterns[trackNum - 1];
     if (!track) return;
-    track.level = Math.max(0, Math.min(1, (track.level ?? 0.7) + delta));
+    const cur = track.level ?? track.volume ?? 0.7;
+    track.level = Math.max(0, Math.min(1, Math.round((cur + delta) * 100) / 100));
+    track.volume = track.level;
+    this.updateTrackGains();
     this.onPresetChangeCallbacks.forEach(cb => cb(this.presetNames[this.presetIndex], this.patterns));
   }
 
@@ -529,24 +673,12 @@ export class Engine {
   onMasterLevel(cb) { this.onMasterLevelCallbacks.push(cb); }
   onPresetChange(cb) { this.onPresetChangeCallbacks.push(cb); }
   onLearn(cb) { this.onLearnCallbacks.push(cb); }
-  onLayerChange(cb) { this.onLayerChangeCallbacks = this.onLayerChangeCallbacks || []; this.onLayerChangeCallbacks.push(cb); }
-
-  getState() {
-    return {
-      tempo: this.tempo,
-      isPlaying: this.isPlaying,
-      currentStep: this.currentStep,
-      patterns: this.patterns,
-      masterLevel: this.masterLevel,
-      currentPreset: this.presetNames[this.presetIndex],
-      currentLayer: this.currentLayer
-    };
-  }
+  onLayerChange(cb) { this.onLayerChangeCallbacks.push(cb); }
+  onLastPad(cb) { this.onLastPadCallbacks.push(cb); }
 
   dispose() {
     if (this.lookaheadTimerId) clearInterval(this.lookaheadTimerId);
-    if (this.timerId) clearInterval(this.timerId);
-    this.kit.dispose();
+    this.kit?.dispose();
     this.actx?.close();
   }
 }
