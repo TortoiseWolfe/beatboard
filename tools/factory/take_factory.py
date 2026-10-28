@@ -74,10 +74,35 @@ def pick_song(songs, counts, votes):
     return best
 
 
-def stream_speed(log_text):
-    """Mean of the last three 'over the last minute' speed figures, or None if the log has none."""
-    xs = [float(x) for x in re.findall(r"([\d.]+)x over the last minute", log_text)]
-    return sum(xs[-3:]) / len(xs[-3:]) if xs else None
+def _clock(stamp):
+    """Seconds since midnight for a '10:38:34 PM' stamp."""
+    t = time.strptime(stamp, "%I:%M:%S %p")
+    return t.tm_hour * 3600 + t.tm_min * 60 + t.tm_sec
+
+
+def stream_speed(log_text, window=10):
+    """Real encoder speed over the last `window` readings, from ffmpeg's since-start figures.
+
+    The log's 'over the last minute' figure can repeat the since-start average, so it is never used. Media
+    seconds made by a reading = speed x seconds since the 'ffmpeg started' line; the real speed is the change in
+    media seconds over the change in wall-clock time. None until there are two readings and a start line.
+    """
+    start = re.search(r"^(\d+:\d+:\d+ [AP]M) ffmpeg started", log_text, re.M)
+    if not start:
+        return None
+    t0, pts, day = _clock(start.group(1)), [], 0
+    prev = t0
+    for stamp, sp in re.findall(r"^(\d+:\d+:\d+ [AP]M) ffmpeg speed=([\d.]+)x since start", log_text, re.M):
+        t = _clock(stamp) + day
+        if t < prev:
+            day += 86400
+            t += 86400
+        prev = t
+        pts.append((t - t0, float(sp) * (t - t0)))
+    pts = pts[-window:]
+    if len(pts) < 2 or pts[-1][0] <= pts[0][0]:
+        return None
+    return (pts[-1][1] - pts[0][1]) / (pts[-1][0] - pts[0][0])
 
 
 def first_bpm(heading, style, default=80):
@@ -127,7 +152,7 @@ def size_and_tag(src, dst, title):
 def render(lyrics_text, style, name, seed, seconds, bpm, outdir):
     lf = f"{outdir}/{name}.lyrics.txt"
     open(lf, "w").write(lyrics_text)
-    r = sh("nice", "-n", "10", "python3", RENDER, lf, style, name, str(seed), str(seconds), str(bpm), outdir + "/")
+    r = sh("nice", "-n", "19", "python3", RENDER, lf, style, name, str(seed), str(seconds), str(bpm), outdir + "/")
     os.remove(lf)
     files = [f"{outdir}/{name}.mp3", f"{outdir}/{name}b.mp3"]
     return [f for f in files if os.path.exists(f)], r.stdout[-200:] + r.stderr[-200:]
@@ -202,7 +227,7 @@ def stream_busy():
     logs = sorted(glob.glob(LIVE_LOGS + "/live-*.log"), key=os.path.getmtime)
     if not logs or time.time() - os.path.getmtime(logs[-1]) > 180:
         return None
-    return stream_speed(open(logs[-1]).read()[-4000:])
+    return stream_speed(open(logs[-1]).read())
 
 
 def build_registry():

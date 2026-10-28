@@ -58,12 +58,28 @@ class VoteTests(unittest.TestCase):
 
 
 class StreamTests(unittest.TestCase):
-    def test_parse(self):
-        log = "".join(f"10:5{i}:35 PM ffmpeg speed=0.99x since start; {v}x over the last minute\n" for i, v in enumerate([1.2, 1.0, 0.9, 0.8]))
-        self.assertAlmostEqual(tf.stream_speed(log), 0.9)
+    START = "10:38:34 PM ffmpeg started: 37 full songs\n"
 
-    def test_none_without_figures(self):
-        self.assertIsNone(tf.stream_speed("nothing here"))
+    def log(self, readings):
+        return self.START + "".join(f"{t} ffmpeg speed={s}x since start; {s}x over the last minute\n" for t, s in readings)
+
+    def test_real_time_when_average_is_flat(self):
+        # since-start average holds at 0.994 while real speed is 1.0: the per-minute figure would mislead
+        r = [("11:00:34 PM", 0.994), ("11:02:34 PM", 0.9945), ("11:04:34 PM", 0.995), ("11:06:34 PM", 0.9954)]
+        self.assertAlmostEqual(tf.stream_speed(self.log(r)), 1.0, delta=0.01)
+
+    def test_slow_encoder_is_seen(self):
+        # average falls from 1.000 to 0.980 between 11:00 and 11:10: real speed in the window is well under 1
+        r = [("11:00:34 PM", 1.0), ("11:05:34 PM", 0.99), ("11:10:34 PM", 0.98)]
+        self.assertLess(tf.stream_speed(self.log(r)), 0.95)
+
+    def test_none_without_two_readings_or_start(self):
+        self.assertIsNone(tf.stream_speed(self.log([("11:00:34 PM", 1.0)])))
+        self.assertIsNone(tf.stream_speed("11:00:34 PM ffmpeg speed=1.0x since start; 1.0x over the last minute\n"))
+
+    def test_crossing_midnight(self):
+        r = [("11:58:34 PM", 1.0), ("12:00:34 AM", 1.0), ("12:02:34 AM", 1.0)]
+        self.assertAlmostEqual(tf.stream_speed(self.log(r)), 1.0, delta=0.01)
 
 
 class TimingTests(unittest.TestCase):
