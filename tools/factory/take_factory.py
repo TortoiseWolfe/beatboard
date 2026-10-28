@@ -20,6 +20,7 @@ TAKES = AUD + "/takes"
 CATALOG = TAKES + "/catalog.json"
 SONGS = TAKES + "/songs.json"
 STOP = TAKES + "/STOP"
+YIELD_DIR = os.environ.get("GPU_YIELD_DIR", os.path.expanduser("~/.cache/gpu-yield"))
 TAG = "music made with AI (ACE-Step 1.5)"
 LUFS_TARGET = -16.1
 
@@ -202,6 +203,7 @@ def load_json(p, default):
 
 
 def save_json(p, obj):
+    os.makedirs(os.path.dirname(p), exist_ok=True)
     tmp = p + ".tmp"
     json.dump(obj, open(tmp, "w"), indent=1)
     os.replace(tmp, p)
@@ -276,13 +278,28 @@ def rave_songs():
         style = (f"long instrumental uplifting electronic dance, {key}, about {bpm} BPM, steady four-on-the-floor kick, a bicycle wheel tick, "
                  f"the band's brass and music box woven through, builds and drops, no vocals, clean and joyful")
         out.append({"id": sid, "title": title, "lyrics": "[Instrumental]", "style": style, "bpm": bpm, "seconds": 270, "kind": "rave",
-                    "priority": 3.0, "key": key, "key_locked": True, "sections": 4, "arc": ARC})
+                    "priority": 3.0, "key": key, "key_locked": True, "sections": 5, "arc": ARC})
     return out
 
 # ---------- rendering one take ----------
 
 def next_index(catalog, sid):
     return 1 + max([t["take_n"] for t in catalog if t["song"] == sid] or [-1])
+
+
+def clean_section(song, style, bpm, seed, n, i, work):
+    """One rave section with no mid-section dropout, sized to the target loudness; up to 3 seeds, both renders of each."""
+    arc = song["arc"][min(i, len(song["arc"]) - 1)]
+    for attempt in range(3):
+        files, _ = render("[Instrumental]", style + ", " + arc, f"{song['id']}-t{n}-s{i}-{attempt}", seed + attempt * 1000,
+                          song["seconds"], bpm, work)
+        for f in files:
+            if not mid_gaps(silence_log(f), duration(f)):
+                out = f.replace(".mp3", ".norm.wav")
+                g = round(LUFS_TARGET - lufs(f), 2)
+                sh("nice", "-n", "19", "ffmpeg", "-y", "-v", "error", "-i", f, "-af", f"volume={g}dB,alimiter=limit=0.85:level=disabled", out)
+                return out
+    return None
 
 
 def make_takes(song, catalog):
@@ -294,11 +311,11 @@ def make_takes(song, catalog):
     if song["kind"] == "rave":
         secs = []
         for i in range(song["sections"]):
-            files, _ = render("[Instrumental]", style + ", " + song["arc"][min(i, len(song["arc"]) - 1)] if i < song["sections"] - 1 else style + ", " + song["arc"][-1],
-                              f"{song['id']}-t{n}-s{i}", seed + i * 7, song["seconds"], bpm, work)
-            if not files:
+            sec = clean_section(song, style, bpm, seed + i * 7, n, i, work)
+            if not sec:
+                print("rave section", i, "had no clean take in 3 tries", flush=True)
                 return made
-            secs.append(files[0])
+            secs.append(sec)
         joined = join_sections(secs, bpm, f"{work}/{song['id']}-t{n}")
         cands = [(joined, f"{song['id']}-t{n}")]
         seams = []
@@ -318,6 +335,7 @@ def make_takes(song, catalog):
         bad_seams = seam_report(dst, seams) if seams else []
         ok = not gaps and not bad_seams and (song["kind"] != "rave" or total >= 900)
         if not ok:
+            print("rejected", tid, "gaps", gaps, "bad seams", bad_seams, "seconds", round(total, 1), flush=True)
             os.remove(dst)
             continue
         made.append({"song": song["id"], "take": tid, "take_n": n, "style": style, "seed": seed + k, "bpm": bpm, "key": key,
@@ -336,6 +354,46 @@ def stack_up():
             if sh("curl", "-s", "-m", "3", "http://127.0.0.1:8001/health").stdout.find('"ok"') >= 0:
                 break
             time.sleep(5)
+
+
+def gpu_free_mb():
+    try:
+        return int(sh("nvidia-smi", "--query-gpu=memory.free", "--format=csv,noheader,nounits").stdout.split()[0])
+    except Exception:
+        return 0
+
+
+def stack_down():
+    sh("timeout", "200", os.path.expanduser("~/.claude/scripts/docker-heavy.sh"), "--timeout", "150", "--", "docker", "compose", "-p",
+       "jingle-audio", "-f", os.path.expanduser("~/repos/_vendor/ACE-Step-1.5/docker-compose.jingle.yml"), "down")
+
+
+def yield_gpu(yield_dir=None, free_mb=None, down=None, up=None, sleep=time.sleep, clock=time.time, wait=600, need_mb=6144):
+    """Share the card with the comic: music first, then one comic page per music batch.
+
+    If yield_dir/request exists: stop the music stack, wait until the card has need_mb free, write yield_dir/granted,
+    wait until both files are gone (at most `wait` seconds), delete any leftovers, and start the stack again.
+    Returns True when it yielded.
+    """
+    yield_dir = yield_dir or YIELD_DIR
+    free_mb, down, up = free_mb or gpu_free_mb, down or stack_down, up or stack_up
+    request, granted = os.path.join(yield_dir, "request"), os.path.join(yield_dir, "granted")
+    if not os.path.exists(request):
+        return False
+    down()
+    start = clock()
+    while free_mb() < need_mb and clock() - start < 120:
+        sleep(2)
+    if free_mb() >= need_mb:
+        open(granted, "w").write(time.strftime("%Y-%m-%d %H:%M:%S") + "\n")
+        start = clock()
+        while (os.path.exists(request) or os.path.exists(granted)) and clock() - start < wait:
+            sleep(5)
+    for f in (request, granted):
+        if os.path.exists(f):
+            os.remove(f)
+    up()
+    return True
 
 
 def run():
@@ -357,6 +415,8 @@ def run():
         catalog += made
         save_json(CATALOG, catalog)
         print(time.strftime("%I:%M %p"), s["id"], "kept", len(made), "total", len(catalog), flush=True)
+        if yield_gpu():
+            print(time.strftime("%I:%M %p"), "gave the card to the comic, stack restarted", flush=True)
         songs = load_json(SONGS, songs)
         time.sleep(2 if sp is None or sp >= 1.0 else 20)
 
