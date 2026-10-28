@@ -93,6 +93,10 @@ class TimingTests(unittest.TestCase):
     def test_crossfade_is_eight_bars(self):
         self.assertEqual(tf.crossfade_seconds(120), 16.0)
 
+    def test_long_songs_are_capped_to_what_fits_the_card(self):
+        self.assertEqual(tf.render_seconds(365), 270)
+        self.assertEqual(tf.render_seconds(185), 185)
+
     def test_first_bpm(self):
         self.assertEqual(tf.first_bpm("3: Song, 100 BPM", "x, about 90 BPM"), 100)
         self.assertEqual(tf.first_bpm("3: Song", "x, about 90 BPM"), 90)

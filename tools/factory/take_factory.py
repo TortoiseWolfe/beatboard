@@ -106,6 +106,13 @@ def stream_speed(log_text, window=10):
     return (pts[-1][1] - pts[0][1]) / (pts[-1][0] - pts[0][0])
 
 
+MAX_RENDER_SECONDS = 270  # 240 s peaks at 7.5-7.7 GB on the 8 GB card; longer is not proven to fit
+
+
+def render_seconds(wanted):
+    return min(MAX_RENDER_SECONDS, wanted)
+
+
 def first_bpm(heading, style, default=80):
     """The first 'NN BPM' in the heading, else in the style line, else the default."""
     for text in (heading, style):
@@ -150,10 +157,10 @@ def size_and_tag(src, dst, title):
     return round(LUFS_TARGET, 1)
 
 
-def render(lyrics_text, style, name, seed, seconds, bpm, outdir):
+def render(lyrics_text, style, name, seed, seconds, bpm, outdir, beats=4):
     lf = f"{outdir}/{name}.lyrics.txt"
     open(lf, "w").write(lyrics_text)
-    r = sh("nice", "-n", "19", "python3", RENDER, lf, style, name, str(seed), str(seconds), str(bpm), outdir + "/")
+    r = sh("nice", "-n", "19", "python3", RENDER, lf, style, name, str(seed), str(seconds), str(bpm), outdir + "/", str(beats))
     os.remove(lf)
     files = [f"{outdir}/{name}.mp3", f"{outdir}/{name}b.mp3"]
     return [f for f in files if os.path.exists(f)], r.stdout[-200:] + r.stderr[-200:]
@@ -253,11 +260,17 @@ def build_registry():
     p2 = open(f"{STORY}/lyrics-pass-2.md").read().split("## Part 2")[1]
     m = re.search(r"```\n(.*?)```", p2, re.S); s = re.search(r'\nStyle: "(.*?)"', p2)
     add("story-11", "The Riders", m.group(1), s.group(1), 76, 245, "story", 3.0)
-    for title, lyr, style in sections(f"{STORY}/lyrics-pass-4.md", "Song"):
-        letter = title[0]; bpm = int(re.search(r"(\d+) BPM", title)[1])
-        mins = re.search(r"about (\d+):(\d+)", title)
-        secs = int(mins[1]) * 60 + int(mins[2]) + 5
-        add(f"bike-{letter.lower()}", title.split(":", 1)[1].split("(")[0].strip(), lyr, style, bpm, secs, "bike", 3.0)
+    for fn, kind in (("lyrics-pass-4.md", "bike"), ("lyrics-pass-5.md", "lore"), ("lyrics-pass-6.md", "lore")):
+        if not os.path.exists(f"{STORY}/{fn}"):
+            continue
+        for title, lyr, style in sections(f"{STORY}/{fn}", "Song"):
+            letter = title[0]
+            bpm = first_bpm(title, style)
+            mins = re.search(r"about (\d+):(\d+)", title)
+            secs = int(mins[1]) * 60 + int(mins[2]) + 5
+            add(f"{kind}-{letter.lower()}", title.split(":", 1)[1].split("(")[0].strip(), lyr, style, bpm, render_seconds(secs), kind, 3.0)
+            if "3/4" in title or "in three" in title:
+                songs[-1]["beats"] = 3
     songs += rave_songs()
     save_json(SONGS, songs)
     return songs
@@ -324,7 +337,7 @@ def make_takes(song, catalog):
             t += section_trim(bpm, duration(f)) - crossfade_seconds(bpm)
             seams.append(t)
     else:
-        files, _ = render(song["lyrics"], style, f"{song['id']}-t{n}", seed, song["seconds"], bpm, work)
+        files, _ = render(song["lyrics"], style, f"{song['id']}-t{n}", seed, song["seconds"], bpm, work, song.get("beats", 4))
         cands = [(f, f"{song['id']}-t{n}" + ("b" if f.endswith("b.mp3") else "")) for f in files]
         seams = []
     for k, (src, tid) in enumerate(cands):
