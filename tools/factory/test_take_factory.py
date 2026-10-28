@@ -99,5 +99,63 @@ class TimingTests(unittest.TestCase):
         self.assertEqual(tf.first_bpm("3: Song", "x"), 80)
 
 
+class YieldTests(unittest.TestCase):
+    def setUp(self):
+        import tempfile, os
+        self.d = tempfile.mkdtemp()
+        self.req, self.grant = os.path.join(self.d, "request"), os.path.join(self.d, "granted")
+        self.events = []
+        self.now = [0.0]
+
+    def clock(self):
+        return self.now[0]
+
+    def sleep(self, s):
+        self.now[0] += s
+
+    def run_yield(self, free, comic=None, wait=600):
+        def sleeper(s):
+            self.sleep(s)
+            if comic:
+                comic()
+        return tf.yield_gpu(self.d, free_mb=free, down=lambda: self.events.append("down"),
+                            up=lambda: self.events.append("up"), sleep=sleeper, clock=self.clock, wait=wait)
+
+    def test_no_request_does_nothing(self):
+        self.assertFalse(self.run_yield(lambda: 8000))
+        self.assertEqual(self.events, [])
+
+    def test_request_stops_stack_grants_and_restarts(self):
+        import os
+        open(self.req, "w").close()
+        seen = []
+
+        def comic():
+            seen.append(os.path.exists(self.grant))
+            if os.path.exists(self.grant):
+                os.remove(self.grant)
+                os.remove(self.req)
+
+        self.assertTrue(self.run_yield(lambda: 7000, comic))
+        self.assertEqual(self.events, ["down", "up"])
+        self.assertIn(True, seen)
+        self.assertFalse(os.path.exists(self.req) or os.path.exists(self.grant))
+
+    def test_gives_up_waiting_after_ten_minutes_and_clears_files(self):
+        import os
+        open(self.req, "w").close()
+        self.assertTrue(self.run_yield(lambda: 7000))
+        self.assertGreaterEqual(self.now[0], 600)
+        self.assertFalse(os.path.exists(self.req) or os.path.exists(self.grant))
+        self.assertEqual(self.events, ["down", "up"])
+
+    def test_no_grant_when_card_stays_full(self):
+        import os
+        open(self.req, "w").close()
+        self.assertTrue(self.run_yield(lambda: 2000))
+        self.assertFalse(os.path.exists(self.grant))
+        self.assertEqual(self.events, ["down", "up"])
+
+
 if __name__ == "__main__":
     unittest.main()
