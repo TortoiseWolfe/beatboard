@@ -161,5 +161,21 @@ class YieldTests(unittest.TestCase):
         self.assertEqual(self.events, ["down", "up"])
 
 
+class ContentGateTests(unittest.TestCase):
+    def test_clean_instrumental_passes(self):
+        self.assertEqual(tf.content_problems("[Instrumental]", "long instrumental uplifting electronic dance, A minor", "Pedal Beat Rave"), ([], []))
+
+    def test_each_blocking_phrase_is_caught(self):
+        for line in ["She taps three times, and waits", "ROOM FOR EVERY KID", "follow the lights", "a girl at a window", "so the little one", "Come sit with me"]:
+            self.assertTrue(tf.content_problems(line)[0], line)
+
+    def test_send_tell_post_is_review_only(self):
+        self.assertEqual(tf.content_problems("do what they're told"), ([], [r"\b(send|tell|post|told)\b"]))
+
+    def test_make_takes_skips_a_blocked_song(self):
+        song = {"id": "x", "title": "x", "lyrics": "[Verse]\na girl at a window", "style": "pop", "bpm": 100, "seconds": 60, "kind": "story"}
+        self.assertEqual(tf.make_takes(song, []), [])
+
+
 if __name__ == "__main__":
     unittest.main()

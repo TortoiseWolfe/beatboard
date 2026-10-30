@@ -29,7 +29,19 @@ MOODS = ["moody", "tender", "bright", "spooky but gentle", "dreamy", "driving", 
 MIXES = ["with extra music box", "with a warmer bass", "with more brass", "with a crunchier guitar", "with soft strings",
          "with a celesta and bells", "with a rolling piano", "with a tapping rim click", "with a breathy sax", "with a wheezing organ"]
 
+# Content gate (hub CONTENT-RULE.md, 28 Oct): nothing may read as a figure near a child or as an invitation aimed at children.
+# Same nine phrases as the track-sheet builder. The first eight block a render; the last (send/tell/post/told) is review only.
+BAD_PHRASES = [r"taps three times, and waits", r"ROOM FOR EVERY KID", r"FOLLOW THE LIGHTS", r"room on the wagon for you and me",
+               r"a girl at a window", r"couldn't speak.*watched|watched a girl", r"so the little one", r"come sit with me"]
+REVIEW_PHRASES = [r"\b(send|tell|post|told)\b"]
+
 # ---------- pure helpers (tested) ----------
+
+def content_problems(*texts):
+    """(blocking, review): the BAD_PHRASES and REVIEW_PHRASES matches over the lyrics, style and title, before anything renders."""
+    text = "\n".join(t for t in texts if t)
+    return ([p for p in BAD_PHRASES if re.search(p, text, re.I)], [p for p in REVIEW_PHRASES if re.search(p, text, re.I)])
+
 
 def variant(song, n):
     """Deterministic small change for take number n of a song: (style, bpm, seed, key)."""
@@ -316,6 +328,12 @@ def clean_section(song, style, bpm, seed, n, i, work):
 
 
 def make_takes(song, catalog):
+    blocking, review = content_problems(song.get("lyrics"), song.get("style"), song.get("title"), song.get("ribbon"))
+    if review:
+        print("content review (not blocking)", song["id"], review, flush=True)
+    if blocking:
+        print("content gate: not rendering", song["id"], "matches", blocking, flush=True)
+        return []
     n = next_index(catalog, song["id"])
     style, bpm, seed, key = variant(song, n)
     outdir = f"{TAKES}/{song['id']}"; os.makedirs(outdir, exist_ok=True)
