@@ -368,7 +368,7 @@ def reset_audio_server(run=None, sleep=time.sleep):
     return False
 
 
-RENDER_GPU_NEED_MB = 2048  # free graphics memory the server needs for one decode; with less it falls back to a CPU decode that runs for hours (30 Oct 5:15 PM: 0.05 GB free)
+RENDER_GPU_NEED_MB = 1800  # free graphics memory the server needs for one decode (30 Oct 7:00 PM: a healthy idle server leaves 2020 to 2190 MB free, so 2048 held every render for the full 20 minutes); with less it falls back to a CPU decode that runs for hours (30 Oct 5:15 PM: 0.05 GB free)
 RENDER_GPU_WAIT = 1200  # seconds to wait for it before rendering anyway
 
 
