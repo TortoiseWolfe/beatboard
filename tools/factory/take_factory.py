@@ -368,8 +368,9 @@ def reset_audio_server(run=None, sleep=time.sleep):
     return False
 
 
-RENDER_GPU_NEED_MB = 1800  # free graphics memory the server needs for one decode (30 Oct 7:00 PM: a healthy idle server leaves 2020 to 2190 MB free, so 2048 held every render for the full 20 minutes); with less it falls back to a CPU decode that runs for hours (30 Oct 5:15 PM: 0.05 GB free)
-RENDER_GPU_WAIT = 1200  # seconds to wait for it before rendering anyway
+RENDER_GPU_NEED_MB = 1200  # free graphics memory a decode needs above what the server already holds (hub 30 Oct 6:59 PM: the server keeps about 5.9 GB and Ollama 1.7 GB, so free sits near 2.1 GB and dips under 2048; a decode needs about 0.9 GB; the 4:03 PM CPU fallback came at 0.40 GB free)
+RENDER_GPU_WAIT = 600  # seconds to wait for it before rendering anyway
+ALERT = None  # the loop sets this to a function that puts a line where the hub sees it
 
 
 def wait_gpu_free(need_mb=None, free_mb=None, sleep=time.sleep, clock=time.time, wait=None):
@@ -386,7 +387,9 @@ def wait_gpu_free(need_mb=None, free_mb=None, sleep=time.sleep, clock=time.time,
             print(time.strftime("%-I:%M %p"), f"GPU WAIT: under {need_mb} MB free on the card, holding the render", flush=True)
             said = True
         if clock() - start >= wait:
-            print(time.strftime("%-I:%M %p"), f"GPU WAIT over after {wait} s, rendering anyway", flush=True)
+            print(time.strftime("%-I:%M %p"), f"GPU WAIT TIMEOUT after {wait} s with under {need_mb} MB free, rendering anyway", flush=True)
+            if ALERT:
+                ALERT(f"GPU WAIT TIMEOUT: under {need_mb} MB free for {wait} s, rendering anyway")
             return False
         sleep(30)
     return True
