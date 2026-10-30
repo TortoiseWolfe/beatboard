@@ -140,7 +140,8 @@ def variant(song, n):
     r = random.Random(h)
     bpm = max(60, song["bpm"] + (r.randint(-4, 4) if n else 0))
     key = song.get("key") if song.get("key_locked") else (r.choice(KEYS) if n else song.get("key", "A minor"))
-    extra = f"{r.choice(MOODS)}, {r.choice(MIXES)}" if n else ""
+    rave = song.get("kind") == "rave"
+    extra = f"{r.choice(RAVE_MOODS if rave else MOODS)}, {r.choice(RAVE_MIXES if rave else MIXES)}" if n else ""
     style = song["style"]
     style = re.sub(r"about \d+ BPM", f"about {bpm} BPM", style)
     if n:
@@ -474,39 +475,34 @@ def build_registry():
     return songs
 
 
-ARC = ["slow build, filtered kick, music box melody and a bicycle wheel tick",
-       "first drop, full four-on-the-floor kick and a rolling bass, brass stabs and bells",
-       "breakdown, music box melody alone with rising risers, then the kick returns",
-       "second drop, the biggest section, brass lead over a steady pedal-beat pulse, bright synth arpeggios",
-       "long outro, the kick thins out, music box and wheel tick, the pulse fades"]
-RAVES = [("rave-1", "Pedal Beat Rave (A minor)", "A minor", 128), ("rave-2", "Brass Wheel Rave (D minor)", "D minor", 132),
-         ("rave-3", "Music Box Rave (E minor)", "E minor", 140), ("rave-4", "Steam Rave (G minor)", "G minor", 136)]
+# Grunge drum and bass (Jonathan, 30 Oct about 9:55 AM, hearing rave-7 take 1: "we're loosing the grungier side of our kids rock band, they still
+# play outside in the mud on their bikes with some drum and bass wild child rave"). Every rave take from now on uses this style; kid-safe, no vocals.
+ARC = ["slow build, a dirty filtered breakbeat, scratchy guitar feedback and a bicycle wheel tick in the mud",
+       "first drop, fast chopped breakbeats on a live drum kit, a growling distorted bass, crunchy overdriven guitar riffs",
+       "breakdown, raw guitar and a snare roll over a gritty bass drone, a bicycle bell, then the breakbeat crashes back in",
+       "second drop, the biggest section, wild breakbeats, distorted bass wobbles and loud garage guitar, kids shouting along off-mic",
+       "long outro, the drums loosen to a muddy shuffle, guitar feedback and wheel tick, the noise fades"]
+RAVES = [("rave-1", "Pedal Beat Rave (A minor)", "A minor", 170), ("rave-2", "Brass Wheel Rave (D minor)", "D minor", 172),
+         ("rave-3", "Music Box Rave (E minor)", "E minor", 174), ("rave-4", "Steam Rave (G minor)", "G minor", 168)]
+RAVES2 = [("rave-5", "Kit and Synth Rave (C minor)", "C minor", 170), ("rave-6", "Hollow Wheel Rave (F minor)", "F minor", 172),
+          ("rave-7", "Lantern Drop Rave (B minor)", "B minor", 174), ("rave-8", "Copper Pulse Rave (A minor)", "A minor", 168),
+          ("rave-9", "Chain Lightning Rave (E minor)", "E minor", 170), ("rave-10", "Wagon Wheel Drop (D minor)", "D minor", 172)]
+RAVE_MOODS = ["muddy", "raw", "gritty", "wild", "rough", "scrappy", "feral", "roaring"]
+RAVE_MIXES = ["with a crunchier guitar", "with a heavier distorted bass", "with a tighter breakbeat", "with fuzzy garage guitar",
+              "with a noisier lo-fi mix", "with a rattling snare", "with a bicycle bell cutting through", "with a gritty amen-style break"]
 
 
-# Pedal-beat style, new songs (Jonathan, 30 Oct: the Band Wagon leans rave over jazz). Keys and tempos vary within 124 to 140 BPM;
-# a punchy drum kit and a synth lead carry the tune, with a breakdown and a drop.
-ARC2 = ["slow build, filtered kick, kit hats and a synth pluck, a bicycle wheel tick",
-        "first drop, full kit with a four-on-the-floor kick, rolling bass, bright synth lead",
-        "breakdown, synth lead alone over a soft pad with rising risers and a snare roll, then the kick returns",
-        "second drop, the biggest section, synth lead and brass over a steady pedal-beat pulse, bright arpeggios",
-        "long outro, the kit thins out, synth pluck and wheel tick, the pulse fades"]
-RAVES2 = [("rave-5", "Kit and Synth Rave (C minor)", "C minor", 124), ("rave-6", "Hollow Wheel Rave (F minor)", "F minor", 130),
-          ("rave-7", "Lantern Drop Rave (B minor)", "B minor", 138), ("rave-8", "Copper Pulse Rave (A minor)", "A minor", 126),
-          ("rave-9", "Chain Lightning Rave (E minor)", "E minor", 134), ("rave-10", "Wagon Wheel Drop (D minor)", "D minor", 140)]
+def rave_style(key, bpm):
+    return (f"long instrumental gritty drum and bass rave, {key}, about {bpm} BPM, fast chopped breakbeats on a live drum kit, a growling distorted bass, "
+            f"crunchy overdriven guitar from a kids' garage rock band, raw and rough, outdoor mud-and-bikes energy, a bicycle bell and wheel tick buried "
+            f"in the mix, a breakdown and a drop, wild child rave, no vocals, lo-fi and dirty")
 
 
 def rave_songs():
     out = []
-    for sid, title, key, bpm in RAVES:
-        style = (f"long instrumental uplifting electronic dance, {key}, about {bpm} BPM, steady four-on-the-floor kick, a bicycle wheel tick, "
-                 f"the band's brass and music box woven through, builds and drops, no vocals, clean and joyful")
-        out.append({"id": sid, "title": title, "lyrics": "[Instrumental]", "style": style, "bpm": bpm, "seconds": 270, "kind": "rave",
+    for sid, title, key, bpm in RAVES + RAVES2:
+        out.append({"id": sid, "title": title, "lyrics": "[Instrumental]", "style": rave_style(key, bpm), "bpm": bpm, "seconds": 270, "kind": "rave",
                     "priority": 3.0, "key": key, "key_locked": True, "sections": 5, "arc": ARC})
-    for sid, title, key, bpm in RAVES2:
-        style = (f"long instrumental uplifting electronic dance, {key}, about {bpm} BPM, a punchy drum kit with a steady four-on-the-floor kick, "
-                 f"a bright synth lead, a bicycle wheel tick, the band's brass and music box as colour, a breakdown and a drop, no vocals, clean and joyful")
-        out.append({"id": sid, "title": title, "lyrics": "[Instrumental]", "style": style, "bpm": bpm, "seconds": 270, "kind": "rave",
-                    "priority": 3.0, "key": key, "key_locked": True, "sections": 5, "arc": ARC2})
     return out
 
 # ---------- rendering one take ----------

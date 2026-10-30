@@ -87,6 +87,25 @@ class StreamTests(unittest.TestCase):
         self.assertIsNone(tf.stream_speed(self.line("11:00:34 PM", 1.0, 1.0)))
 
 
+class RaveGrungeTests(unittest.TestCase):
+    def test_every_rave_is_grungy_drum_and_bass_and_kid_safe(self):
+        songs = tf.rave_songs()
+        self.assertEqual(len(songs), 10)
+        for s in songs:
+            self.assertIn("drum and bass", s["style"])
+            self.assertIn("distorted bass", s["style"])
+            self.assertIn("mud", s["style"])
+            self.assertNotIn("clean and joyful", s["style"])
+            self.assertEqual(tf.content_problems(s["lyrics"], s["style"], s["title"], None)[0], [])
+            self.assertEqual([tf.arc_kind(a) for a in s["arc"]], ["build", "drop", "dip", "drop", "dip"])
+
+    def test_rave_takes_use_rave_moods_and_other_songs_keep_theirs(self):
+        rave = tf.rave_songs()[0]
+        style, _, _, _ = tf.variant(rave, 1)
+        self.assertTrue(any(m in style for m in tf.RAVE_MOODS) and any(m in style for m in tf.RAVE_MIXES))
+        self.assertFalse(any(m in style.split("no vocals")[-1] for m in ("tender", "breathy sax", "dreamy")))
+
+
 class RavePlanTests(unittest.TestCase):
     PLAN = {"events": [{"kind": "drop", "start": 747.3, "end": 761.8, "planned_db": 14.0}], "stops": [], "tol_db": 3.0, "tol_s": 0.5}
 
@@ -118,7 +137,6 @@ class RavePlanTests(unittest.TestCase):
 
     def test_arc_kinds(self):
         self.assertEqual([tf.arc_kind(a) for a in tf.ARC], ["build", "drop", "dip", "drop", "dip"])
-        self.assertEqual([tf.arc_kind(a) for a in tf.ARC2], ["build", "drop", "dip", "drop", "dip"])
 
     def test_gentle_take_like_rave_1_t0_passes(self):
         # rave-1-t0's four seams step by less than 3 dB (10 s before against 3 s after, measured 30 Oct); each matches a plan of the same size
