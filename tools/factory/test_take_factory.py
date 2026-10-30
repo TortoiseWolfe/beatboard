@@ -396,6 +396,44 @@ class RenderTimeoutTests(unittest.TestCase):
             self.assertFalse(os.path.exists(os.path.join(d, "t.lyrics.txt")))
 
 
+class RenderGivesUpTests(unittest.TestCase):
+    def test_render2_own_deadline_resets_the_server_and_prints_timeout(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            giveup = os.path.join(d, "giveup.py")
+            open(giveup, "w").write("import sys\nprint('TIMEOUT waiting for the audio server, task x')\nsys.exit(3)\n")
+            old = (tf.RENDER, tf.reset_audio_server, tf.wait_gpu_free)
+            tf.RENDER = giveup
+            resets = []
+            tf.reset_audio_server = lambda: resets.append(1)
+            tf.wait_gpu_free = lambda: True
+            try:
+                self.assertEqual(tf.render("[Instrumental]", "style", "t", 1, 10, 100, d), ([], "TIMEOUT"))
+            finally:
+                tf.RENDER, tf.reset_audio_server, tf.wait_gpu_free = old
+            self.assertEqual(resets, [1])
+            self.assertFalse(os.path.exists(os.path.join(d, "t.lyrics.txt")))
+
+
+class WaitGpuFreeTests(unittest.TestCase):
+    def test_goes_at_once_when_there_is_room(self):
+        slept = []
+        self.assertTrue(tf.wait_gpu_free(need_mb=2048, free_mb=lambda: 3000, sleep=slept.append))
+        self.assertEqual(slept, [])
+
+    def test_holds_until_the_card_frees_up(self):
+        readings = iter([500, 900, 2500])
+        slept = []
+        self.assertTrue(tf.wait_gpu_free(need_mb=2048, free_mb=lambda: next(readings), sleep=slept.append, clock=lambda: 0))
+        self.assertEqual(slept, [30, 30])
+
+    def test_gives_up_after_the_wait_and_says_so(self):
+        now = [0]
+        def sleep(s): now[0] += s
+        self.assertFalse(tf.wait_gpu_free(need_mb=2048, free_mb=lambda: 100, sleep=sleep, clock=lambda: now[0], wait=90))
+        self.assertEqual(now[0], 90)
+
+
 class ResetAudioServerTests(unittest.TestCase):
     def test_restarts_the_container_then_waits_for_health(self):
         calls = []
