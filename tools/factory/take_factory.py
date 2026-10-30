@@ -580,7 +580,8 @@ ARC = ["slow build, a dirty filtered breakbeat, scratchy guitar feedback and a b
        "first drop, fast chopped breakbeats on a live drum kit, a growling distorted bass, crunchy overdriven guitar riffs",
        "breakdown, the breakbeat keeps rolling under a growling bass with raw guitar stabs and a snare roll, a bicycle bell, then the full drop crashes back in",
        "second drop, the biggest section, wild breakbeats, distorted bass wobbles and loud garage guitar, kids shouting along off-mic",
-       "long outro, the drums loosen to a muddy shuffle, guitar feedback and wheel tick, ending on one final big hit"]
+       # 30 Oct: all 18 stored section-4 renders had mid-section silences (rave-5: one every 2 bars); the outro keeps a pad and bass hum under it, like bike-a
+       "long outro, the drums loosen to a muddy shuffle, a soft pad and a low bass hum holding underneath all the way, guitar feedback and wheel tick over it, ending on one final big hit"]
 RAVES = [("rave-1", "Pedal Beat Rave (A minor)", "A minor", 170), ("rave-2", "Brass Wheel Rave (D minor)", "D minor", 172),
          ("rave-3", "Music Box Rave (E minor)", "E minor", 174), ("rave-4", "Steam Rave (G minor)", "G minor", 168)]
 RAVES2 = [("rave-5", "Kit and Synth Rave (C minor)", "C minor", 170), ("rave-6", "Hollow Wheel Rave (F minor)", "F minor", 172),
