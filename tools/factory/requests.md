@@ -3,6 +3,16 @@
 What Jonathan has asked for, in his own words, and what was queued. The factory itself steers by votes (`read_votes`); this list
 is for asks that are not votes. Newest first. A take made for a request is still checked by `content_problems` before it renders.
 
+## Fri 30 Oct 2026: kid screen (standing content rule)
+
+His words, verbatim: "when marketing to kids we need to watch things that could be converted to dirty jokes, rename finding the bottom to building our bass"
+
+The audience includes kids. Titles and lyrics are screened for double meanings: `DOUBLE_MEANING` in `take_factory.py` (review class in `content_problems`; a song marked
+`kid_safe` is refused if it matches; `title_problems` screens cards, YouTube titles and posts). "Finding the Bottom" is now "Building Our Bass" (id unchanged).
+About 7:55 AM he also approved kid-safe words for the Night Set songs (`KID_FIXES`: shake the pipes -> rattle the pipes; brass blows low, here we come -> brass plays low,
+here we go; going to come -> going to arrive; the ones who come -> the ones who join in; the chain or the screw -> the chain or the bolt; here I come -> here I am;
+Crash, pounding -> Crash, drumming). New takes `night-n01`, `night-n08`, `night-n09` are rendered from those words, one after each rave take.
+
 ## Fri 30 Oct 2026, about 7:30 AM: keep making rave takes (direction)
 
 His words, verbatim: "more rave takes, keep them coming. I mean, when's the last time a jazz band went viral and for rave style music, let's party dude"

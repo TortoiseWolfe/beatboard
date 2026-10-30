@@ -125,6 +125,38 @@ class RavePlanTests(unittest.TestCase):
             self.assertIsNone(tf.judge_seam({"kind": "dip", "start": start, "end": start + 15, "planned_db": d}, -15.0, -15.0 + d))
 
 
+class NotMeasurableTests(unittest.TestCase):
+    EV = {"kind": "drop", "start": 100.0, "end": 114.0, "planned_db": 3.0}
+
+    def test_unmeasurable_window_is_a_failure(self):
+        self.assertEqual(tf.judge_seam(self.EV, None, -20.0)[3], "seam not measurable")
+        self.assertEqual(tf.judge_seam(self.EV, -20.0, None)[3], "seam not measurable")
+        self.assertEqual(tf.judge_seam(dict(self.EV, planned_db=None), -20.0, -17.0)[3], "seam not measurable")
+
+    def test_measurable_seam_still_judged_by_the_plan(self):
+        self.assertIsNone(tf.judge_seam(self.EV, -20.0, -17.0))
+
+    def test_rave_plan_keeps_an_unmeasurable_seam_as_an_event(self):
+        orig_win, orig_dur = tf.lufs_window, tf.duration
+        try:
+            tf.duration = lambda p: 100.0
+            tf.lufs_window = lambda p, s, d: None
+            plan = tf.rave_plan(["a", "b"], 128, ["slow build", "first drop, big"])
+        finally:
+            tf.lufs_window, tf.duration = orig_win, orig_dur
+        self.assertEqual(len(plan["events"]), 1)
+        self.assertIsNone(plan["events"][0]["planned_db"])
+
+    def test_check_rave_reports_an_unmeasurable_seam(self):
+        orig = tf.lufs_window
+        try:
+            tf.lufs_window = lambda p, s, d: None
+            bad = tf.check_rave("x.mp3", {"events": [self.EV], "tol_db": 3.0})
+        finally:
+            tf.lufs_window = orig
+        self.assertEqual([b[3] for b in bad], ["seam not measurable"])
+
+
 class TimingTests(unittest.TestCase):
     def test_trim_is_whole_bars(self):
         bar = 4 * 60.0 / 128
@@ -222,3 +254,44 @@ class ContentGateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KidScreenTests(unittest.TestCase):
+    OLD = "Brass blows low, here we come.\nSomething wonderful is going to come.\nVerse sings out to the ones who come.\n"
+
+    def test_old_words_are_flagged_and_new_words_pass(self):
+        for line in ["Boiler room boogie, shake the pipes!", "Brass blows low, here we come.", "Something wonderful is going to come.",
+                     "Verse sings out to the ones who come.", "it's the chain or the screw,", "and it says here I come!", "[Verse 2 - Crash, pounding]", "Finding the Bottom"]:
+            self.assertTrue(tf.title_problems(line), line)
+        for line in ["Boiler room boogie, rattle the pipes!", "Brass plays low, here we go.", "Something wonderful is going to arrive.",
+                     "Verse sings out to the ones who join in.", "it's the chain or the bolt,", "it says here I am!", "[Verse 2 - Crash, drumming]", "Building Our Bass",
+                     "Come on, come along, the wagon rolls on"]:
+            self.assertEqual(tf.title_problems(line), [], line)
+
+    def test_content_problems_lists_double_meanings_as_review(self):
+        blocking, review = tf.content_problems("Brass blows low, here we come.")
+        self.assertEqual(blocking, [])
+        self.assertTrue(review)
+
+    def test_kid_reword_applies_every_pair_and_keeps_the_rest(self):
+        new = tf.kid_reword(self.OLD)
+        self.assertEqual(new, "Brass plays low, here we go.\nSomething wonderful is going to arrive.\nVerse sings out to the ones who join in.\n")
+        self.assertEqual(tf.title_problems(new), [])
+        self.assertEqual(tf.kid_reword(new), new)  # already changed: fine
+
+    def test_words_the_fixes_miss_are_still_caught(self):
+        self.assertTrue(tf.title_problems(tf.kid_reword("the wood and the bottom")))
+
+    def test_night_songs_from_the_jingle_page(self):
+        import tempfile
+        page = "\n".join(f"### {n}: {t} ({b} BPM, 150 s)\n\nx\n\n```\n[Verse]\nline\n```\n\nStyle: \"funk, about {b} BPM\"\n"
+                         for n, t, b in [("n01", "A", 112), ("n08", "B", 126), ("n09", "C", 118)])
+        page = page.replace("line", "Boiler room boogie, shake the pipes!\nBrass blows low, here we come.\nit's the chain or the screw,\nit says here I come!\nSomething wonderful is going to come.\nVerse sings out to the ones who come.", 3)
+        with tempfile.NamedTemporaryFile("w", suffix=".md") as f:
+            f.write(page); f.flush()
+            songs = tf.night_songs(f.name)
+        self.assertEqual([s["id"] for s in songs], ["night-n01", "night-n08", "night-n09"])
+        self.assertEqual([s["bpm"] for s in songs], [112, 126, 118])
+        for s in songs:
+            self.assertTrue(s["kid_safe"])
+            self.assertEqual(tf.title_problems(s["lyrics"], s["title"]), [])
