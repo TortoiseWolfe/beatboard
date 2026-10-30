@@ -148,8 +148,8 @@ def lufs(p):
     return float(e.split("Integrated loudness")[-1].split("I:")[1].split("LUFS")[0])
 
 
-def silence_log(p):
-    return sh("nice", "-n", "19", "ffmpeg", "-nostats", "-i", p, "-af", "silencedetect=noise=-50dB:d=0.4", "-f", "null", "-").stderr
+def silence_log(p, noise=-50, d=0.4):
+    return sh("nice", "-n", "19", "ffmpeg", "-nostats", "-i", p, "-af", f"silencedetect=noise={noise}dB:d={d}", "-f", "null", "-").stderr
 
 
 def size_and_tag(src, dst, title):
@@ -212,6 +212,69 @@ def loudness_curve(path, start, dur):
         except ValueError:
             pass
     return out
+
+
+def lufs_window(path, start, dur):
+    """Integrated loudness of dur seconds from start, or None when the window is empty."""
+    e = sh("ffmpeg", "-nostats", "-ss", str(max(0, start)), "-t", str(dur), "-i", path, "-af", "ebur128", "-f", "null", "-").stderr
+    try:
+        return float(e.split("Integrated loudness")[-1].split("I:")[1].split("LUFS")[0])
+    except Exception:
+        return None
+
+
+def arc_kind(text):
+    """What an ARC entry plans: a drop (arrives louder), a dip (breakdown or outro), or a build."""
+    head = text.split(",")[0].lower()
+    return "drop" if "drop" in head else "dip" if ("breakdown" in head or "outro" in head) else "build"
+
+
+def rave_plan(secs, bpm, arc, tol_db=3.0, tol_s=0.5):
+    """The plan for a joined rave take, from the recipe's section map and the sections themselves.
+
+    One event per seam: the crossfade window [start, end] on the joined timeline, the planned kind (from ARC) and the planned
+    level step, measured on the audio that will sit either side of the crossfade (10 s of the outgoing section before it, 10 s of the
+    incoming section after it). A planned stop is {"time", "max_len"}; the recipe plans none yet.
+    """
+    xf = crossfade_seconds(bpm)
+    events, t = [], 0.0
+    for i in range(len(secs) - 1):
+        keep = section_trim(bpm, duration(secs[i]))
+        start = t + keep - xf
+        pre, post = lufs_window(secs[i], keep - xf - 10, 10), lufs_window(secs[i + 1], xf, 10)
+        if pre is not None and post is not None:
+            events.append({"kind": arc_kind(arc[min(i + 1, len(arc) - 1)]), "start": round(start, 2), "end": round(start + xf, 2),
+                           "planned_db": round(post - pre, 1)})
+        t = start
+    return {"events": events, "stops": [], "tol_db": tol_db, "tol_s": tol_s}
+
+
+def judge_gaps(gaps, plan):
+    """Gaps [(start, length)] that the plan does not explain. A planned stop is a gap starting within tol_s of its time and no longer than its max_len."""
+    return [g for g in gaps if not any(abs(g[0] - st["time"]) <= plan["tol_s"] and g[1] <= st["max_len"] for st in plan["stops"])]
+
+
+def judge_seam(event, pre, post, tol_db=3.0):
+    """None when the joined take shows the planned step within tol_db; else (start, measured_db, planned_db, why)."""
+    measured, planned = round(post - pre, 1), event["planned_db"]
+    if abs(measured - planned) > tol_db:
+        return (event["start"], measured, planned, "step differs from the plan")
+    if (event["kind"] == "drop" and planned < -tol_db) or (event["kind"] == "dip" and planned > tol_db):
+        return (event["start"], measured, planned, f"a {event['kind']} that goes the wrong way")
+    return None
+
+
+def check_rave(path, plan):
+    """Plan-aware seam check on the joined file: [(start, measured_db, planned_db, why)]; empty means every planned step is there."""
+    bad = []
+    for ev in plan["events"]:
+        pre, post = lufs_window(path, ev["start"] - 10, 10), lufs_window(path, ev["end"], 10)
+        if pre is None or post is None:
+            continue
+        f = judge_seam(ev, pre, post, plan["tol_db"])
+        if f:
+            bad.append(f)
+    return bad
 
 
 def keep_rejected(src, tid, outdir, work, song_id, n, bad_seams, gaps, secs):
@@ -342,16 +405,20 @@ def next_index(catalog, sid):
 
 
 def clean_section(song, style, bpm, seed, n, i, work):
-    """One rave section with no mid-section dropout, sized to the target loudness; up to 3 seeds, both renders of each."""
+    """One rave section with no mid-section dropout, sized to the target loudness; up to 3 seeds, both renders of each.
+
+    The dropout check runs on the sized (normalized) audio with a margin (-46 dB, 0.25 s): the whole take is sized again after
+    the join, and a dip that only just clears the check here (rave-2 take 0, 283.8 s) is a dropout there.
+    """
     arc = song["arc"][min(i, len(song["arc"]) - 1)]
     for attempt in range(3):
         files, _ = render("[Instrumental]", style + ", " + arc, f"{song['id']}-t{n}-s{i}-{attempt}", seed + attempt * 1000,
                           song["seconds"], bpm, work)
         for f in files:
-            if not mid_gaps(silence_log(f), duration(f)):
-                out = f.replace(".mp3", ".norm.wav")
-                g = round(LUFS_TARGET - lufs(f), 2)
-                sh("nice", "-n", "19", "ffmpeg", "-y", "-v", "error", "-i", f, "-af", f"volume={g}dB,alimiter=limit=0.85:level=disabled", out)
+            out = f.replace(".mp3", ".norm.wav")
+            g = round(LUFS_TARGET - lufs(f), 2)
+            sh("nice", "-n", "19", "ffmpeg", "-y", "-v", "error", "-i", f, "-af", f"volume={g}dB,alimiter=limit=0.85:level=disabled", out)
+            if not mid_gaps(silence_log(out, -46, 0.25), duration(out)):
                 return out
     return None
 
@@ -378,12 +445,10 @@ def make_takes(song, catalog):
             secs.append(sec)
         joined = join_sections(secs, bpm, f"{work}/{song['id']}-t{n}")
         cands = [(joined, f"{song['id']}-t{n}")]
+        plan = rave_plan(secs, bpm, song["arc"])
         seams = []
-        t = 0.0
-        for f in secs[:-1]:
-            t += section_trim(bpm, duration(f)) - crossfade_seconds(bpm)
-            seams.append(t)
     else:
+        plan = None
         files, _ = render(song["lyrics"], style, f"{song['id']}-t{n}", seed, song["seconds"], bpm, work, song.get("beats", 4))
         cands = [(f, f"{song['id']}-t{n}" + ("b" if f.endswith("b.mp3") else "")) for f in files]
         seams = []
@@ -392,7 +457,12 @@ def make_takes(song, catalog):
         size_and_tag(src, dst, tid)
         total = duration(dst)
         gaps = mid_gaps(silence_log(dst), total)
-        bad_seams = seam_report(dst, seams) if seams else []
+        bad_seams = []
+        if plan:
+            gaps = judge_gaps(gaps, plan)
+            bad_seams = check_rave(dst, plan)
+        elif seams:
+            bad_seams = seam_report(dst, seams)
         ok = not gaps and not bad_seams and (song["kind"] != "rave" or total >= 900)
         if not ok:
             print("rejected", tid, "gaps", gaps, "bad seams", bad_seams, "seconds", round(total, 1), flush=True)
