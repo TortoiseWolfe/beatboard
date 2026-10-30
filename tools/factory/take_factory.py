@@ -39,12 +39,66 @@ REVIEW_PHRASES = [r"\b(send|tell|post|told)\b"]
 # dirty joke. content_problems lists a match as review; a song marked kid_safe must have none (make_takes refuses it); title_problems
 # screens cards, YouTube titles and posts.
 DOUBLE_MEANING = [r"\bbottom\b", r"\bbooty\b", r"\bballs?\b", r"\bwood\b", r"\bscrews?\b", r"\bpounding\b", r"\bshake the pipes\b",
-                  r"\bblows? (low|me|it)\b", r"\b(going to|here we|here I|ones who|I'm gonna|gonna) come\b", r"\bcomes? (in|on) (me|you)\b"]
+                  r"\bblows? (low|me|it)\b", r"\b(going to|here we|here I|ones who|I'm gonna|gonna) come\b", r"\bcomes? (in|on) (me|you)\b",
+                  # 30 Oct, Jonathan's "fix all 27" (double-meanings.md): chants and phrases a kid could twist
+                  r"\bpull it\b", r"\bhammering\b", r"\bwho's coming\b", r"\bcomes? first\b", r"\bthey came\b", r"\bput inside\b",
+                  r"\bputting the service\b", r"\bride, ride, ride\b", r"\booh, ah\b", r"\bone push on\b", r"\bprovides the push\b",
+                  r"\brolling full\b", r"\blength of the road\b", r"\bnot a straight line\b", r"\bbend it\b", r"\bplays it bent\b",
+                  r"\bpush along\b", r"\bhead comes up\b", r"\beveryone comes\b", r"\bhorn can make it bigger\b", r"\bhorn has made\b"]
 # Night Set songs re-worded for kids (Jonathan, 30 Oct about 7:55 AM): (old words, new words).
 KID_FIXES = [("shake the pipes!", "rattle the pipes!"), ("Brass blows low, here we come.", "Brass plays low, here we go."),
              ("is going to come.", "is going to arrive."), ("to the ones who come.", "to the ones who join in."),
              ("it's the chain or the screw,", "it's the chain or the bolt,"), ("it says here I come!", "it says here I am!"),
              ("Crash, pounding]", "Crash, drumming]")]
+# Sung songs re-worded for kids (Jonathan, Fri 30 Oct about 8:18 AM: fix the 27 rows of double-meanings.md that are not marked low).
+# Applied to the title, ribbon, lyrics and style of every song that carries the words, so the ns-* and saas-* copies follow their parent.
+KID_SONG_FIXES = [
+    ("The horn has made the sound bigger.", "The speaker has made the sound louder."),
+    ("The horn can make it bigger,", "The speaker can make it louder,"),
+    ("But it can only make more of whatever's put inside.", "But it can only play whatever's sent inside the sound."),
+    ("We put in sameness, and the sameness gets to be", "We feed it sameness, and the sameness gets to be"),
+    ("Chops plays it bent, and sideways, and human.", "Chops plays it wobbly, and sideways, and human."),
+    ("bend it round the bend,", "wiggle it round the bend,"),
+    ("BEND IT ROUND THE BEND", "WIGGLE IT ROUND THE BEND"),
+    ("it's not a straight line, friend.", "it's not a ruler line, friend."),
+    ("So we play it crooked and we play it true", "So we play it wiggly and we play it true"),
+    ("a bent guitar solo", "a wobbly guitar solo"),
+    ("they push along beside,", "they walk along beside,"),
+    ("is a rhythm you can ride.", "is a rhythm we can trust."),
+    ("who's coming to the show?", "who's joining the show?"),
+    ("nineteen hundred miles they came,", "nineteen hundred miles they rode,"),
+    ("Ivory's piano hammering", "Ivory's piano ringing out"),
+    ("Ivory hammering piano", "Ivory playing piano bright and fast"),
+    ("Crash on a pounding kick", "Crash on a driving kick"),
+    ("a pounding kick", "a driving kick"),
+    ("a pounding four-on-the-floor kick", "a driving four-on-the-floor kick"),
+    ("Band: Pull it!", "Band: Link it!"),
+    ("Chain! Pull it!", "Chain! Link it!"),
+    ("CHAIN! PULL IT!", "CHAIN! LINK IT!"),
+    ("The rider provides the push.", "The rider provides the power."),
+    ("One push on the pedal and the chain starts to pull,", "One step on the pedal and the chain starts to move,"),
+    ("the big wheel's rolling full.", "the big wheel's in the groove."),
+    ("Ride, ride, ride, we are riding side by side,", "Roll, roll, roll, we are rolling side by side,"),
+    ("Ride, ride, ride, it's a big wide world", "Roll, roll, roll, it's a big wide world"),
+    ("Feel the wheels go over the ground!", "Hear the wheels go over the ground!"),
+    ("was the length of the road,", "was the way they rode,"),
+    ("and they carried the load.", "and they never let go."),
+    ("high as a flag up there.", "bright as a flag up there."),
+    ("every head comes up,", "every head looks up,"),
+    ("and I never think to stop.", "but I know when to stop."),
+    ("so everyone comes near.", "so everyone stays near."),
+    ("bring them near.", "bring them here."),
+    ("Putting the Service in SaaS (software as a service)", "Software as a Service, Hooray"),
+    ("PUTTING THE SERVICE IN SAAS", "SOFTWARE AS A SERVICE, HOORAY"),
+    ("Putting the service in SaaS!", "Software as a service, hooray!"),
+    ("The people come first,", "The people go first,"),
+    ("Log entry: the band has a bottom now.", "Log entry: the band has its groove now."),
+    ("Ooh, ah, ooh, ah", "Hey, oh, hey, oh"),
+]
+# Songs that get a new kid-safe take, in the order they render (after the three Night Set songs, one after each rave take).
+KID_REDO = ["story-8", "story-9", "story-12", "story-11", "story-13", "bike-a", "bike-b", "bike-c", "bike-d", "lore-h", "lore-j",
+            "finding-the-bottom", "ukraine-warriorz-cry", "saas-a", "saas-b", "saas-c", "ns-story-9-puppet", "ns-bike-b-jazzrave",
+            "ns-story-12-polka", "ns-story-8-monsterlite"]
 NIGHT_SET = [("n01", "Seven Ghosts in the Wiring"), ("n08", "Wrench in the Works"), ("n09", "Boiler Room Boogie")]
 JINGLE = os.environ.get("BW_JINGLE", os.path.join(os.path.dirname(STORY.rstrip("/")), "band-wagon-jingle.md"))
 
@@ -68,6 +122,16 @@ def kid_reword(text):
     for old, new in KID_FIXES:
         text = text.replace(old, new)
     return text
+
+
+def kid_song_fix(song):
+    """A copy of a song entry with every KID_SONG_FIXES pair applied to its title, ribbon, lyrics and style."""
+    out = dict(song)
+    for key in ("title", "ribbon", "lyrics", "style"):
+        if out.get(key):
+            for old, new in KID_SONG_FIXES:
+                out[key] = out[key].replace(old, new)
+    return out
 
 
 def variant(song, n):
@@ -367,6 +431,12 @@ def night_songs(path=None):
     return out
 
 
+def redo_songs(path=None):
+    """The KID_REDO songs from songs.json with the kid fixes applied, as kid_safe entries (id unchanged: the new take replaces the held one)."""
+    by = {s["id"]: s for s in load_json(path or SONGS, [])}
+    return [dict(kid_song_fix(by[i]), kid_safe=True) for i in KID_REDO if i in by]
+
+
 def build_registry():
     songs = []
     def sections(path, head):
@@ -399,7 +469,7 @@ def build_registry():
             add(f"{kind}-{letter.lower()}", title.split(":", 1)[1].split("(")[0].strip(), lyr, style, bpm, render_seconds(secs), kind, 3.0)
             if "3/4" in title or "in three" in title:
                 songs[-1]["beats"] = 3
-    songs += night_songs() + rave_songs()
+    songs = [kid_song_fix(s) for s in songs] + night_songs() + rave_songs()
     save_json(SONGS, songs)
     return songs
 

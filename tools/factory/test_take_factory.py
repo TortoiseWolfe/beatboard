@@ -268,6 +268,43 @@ class ContentGateTests(unittest.TestCase):
         self.assertEqual(tf.make_takes(song, []), [])
 
 
+class KidFixAllTests(unittest.TestCase):
+    OLD = {"id": "bike-b", "title": "Chain and Gears", "ribbon": "CHAIN! PULL IT! GEAR! TURN IT!", "style": "a pounding four-on-the-floor kick",
+           "lyrics": "Chain! Pull it! Gear! Turn it!\nOne push on the pedal and the chain starts to pull,\nThe rider provides the push.\nThe people come first,"}
+
+    def test_old_words_trip_the_screen(self):
+        self.assertTrue(tf.title_problems(self.OLD["lyrics"]))
+
+    def test_fix_changes_title_ribbon_style_and_lyrics(self):
+        new = tf.kid_song_fix(self.OLD)
+        self.assertEqual(tf.title_problems(new["lyrics"], new["title"]), [])
+        self.assertEqual(new["ribbon"], "CHAIN! LINK IT! GEAR! TURN IT!")
+        self.assertIn("a driving four-on-the-floor kick", new["style"])
+        self.assertIn("The rider provides the power.", new["lyrics"])
+        self.assertEqual(tf.kid_song_fix(new), new)
+
+    def test_saas_title_and_chorus(self):
+        s = tf.kid_song_fix({"id": "saas-a", "title": "Putting the Service in SaaS (software as a service)", "ribbon": "PUTTING THE SERVICE IN SAAS",
+                             "lyrics": "Putting the service in SaaS!"})
+        self.assertEqual((s["title"], s["ribbon"], s["lyrics"]), ("Software as a Service, Hooray", "SOFTWARE AS A SERVICE, HOORAY",
+                                                                  "Software as a service, hooray!"))
+
+    def test_redo_songs_follow_the_list_and_are_kid_safe(self):
+        import tempfile, json
+        songs = [dict(self.OLD, id=i) for i in reversed(tf.KID_REDO)] + [dict(self.OLD, id="story-1")]
+        with tempfile.NamedTemporaryFile("w", suffix=".json") as f:
+            json.dump(songs, f); f.flush()
+            out = tf.redo_songs(f.name)
+        self.assertEqual([s["id"] for s in out], tf.KID_REDO)
+        for s in out:
+            self.assertTrue(s["kid_safe"])
+            self.assertEqual(tf.title_problems(s["lyrics"], s["title"]), [])
+
+    def test_pairs_do_not_loop(self):
+        for old, new in tf.KID_SONG_FIXES:
+            self.assertNotIn(old, new)
+
+
 if __name__ == "__main__":
     unittest.main()
 
