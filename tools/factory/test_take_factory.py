@@ -60,26 +60,30 @@ class VoteTests(unittest.TestCase):
 class StreamTests(unittest.TestCase):
     START = "10:38:34 PM ffmpeg started: 37 full songs\n"
 
-    def log(self, readings):
-        return self.START + "".join(f"{t} ffmpeg speed={s}x since start; {s}x over the last minute\n" for t, s in readings)
+    def line(self, t, since, last):
+        tail = "no last-minute figure yet" if last is None else f"{last}x over the last minute"
+        return f"{t} ffmpeg speed={since}x since start; {tail}\n"
 
-    def test_real_time_when_average_is_flat(self):
-        # since-start average holds at 0.994 while real speed is 1.0: the per-minute figure would mislead
-        r = [("11:00:34 PM", 0.994), ("11:02:34 PM", 0.9945), ("11:04:34 PM", 0.995), ("11:06:34 PM", 0.9954)]
-        self.assertAlmostEqual(tf.stream_speed(self.log(r)), 1.0, delta=0.01)
+    def test_reads_the_last_minute_figure_not_the_average(self):
+        # since-start average is dragged down by the start-up (0.977); the last minute is 1.000
+        log = self.START + self.line("10:39:34 PM", 0.959, None) + self.line("10:40:34 PM", 0.977, 1.0)
+        self.assertEqual(tf.stream_speed(log), 1.0)
 
-    def test_slow_encoder_is_seen(self):
-        # average falls from 1.000 to 0.980 between 11:00 and 11:10: real speed in the window is well under 1
-        r = [("11:00:34 PM", 1.0), ("11:05:34 PM", 0.99), ("11:10:34 PM", 0.98)]
-        self.assertLess(tf.stream_speed(self.log(r)), 0.95)
+    def test_slow_last_minute_is_seen_even_when_average_is_fine(self):
+        log = self.START + self.line("10:39:34 PM", 0.999, 1.0) + self.line("10:40:34 PM", 0.998, 0.93)
+        self.assertEqual(tf.stream_speed(log), 0.93)
 
-    def test_none_without_two_readings_or_start(self):
-        self.assertIsNone(tf.stream_speed(self.log([("11:00:34 PM", 1.0)])))
-        self.assertIsNone(tf.stream_speed("11:00:34 PM ffmpeg speed=1.0x since start; 1.0x over the last minute\n"))
+    def test_no_last_minute_figure_yet_means_wait(self):
+        self.assertEqual(tf.stream_speed(self.START + self.line("10:39:34 PM", 0.959, None)), 0.0)
+        self.assertEqual(tf.stream_speed(self.START), 0.0)
 
-    def test_crossing_midnight(self):
-        r = [("11:58:34 PM", 1.0), ("12:00:34 AM", 1.0), ("12:02:34 AM", 1.0)]
-        self.assertAlmostEqual(tf.stream_speed(self.log(r)), 1.0, delta=0.01)
+    def test_only_the_current_run_counts(self):
+        old = self.START + self.line("10:39:34 PM", 0.9, 0.5)
+        log = old + "10:50:00 PM ffmpeg started: restart\n" + self.line("10:51:00 PM", 0.97, 1.0)
+        self.assertEqual(tf.stream_speed(log), 1.0)
+
+    def test_none_without_a_start_line(self):
+        self.assertIsNone(tf.stream_speed(self.line("11:00:34 PM", 1.0, 1.0)))
 
 
 class TimingTests(unittest.TestCase):
