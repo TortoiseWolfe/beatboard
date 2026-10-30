@@ -477,6 +477,43 @@ class BikeASilenceTests(unittest.TestCase):
             self.assertIn(kept, new)
 
 
+class SpeechGateTests(unittest.TestCase):
+    LYRICS = "[Verse 1]\nsomething is squeaking in the wheel\nhand me down the wrench now\n[Chorus]\nwrench in the works\nfix it tap it and learn\n"
+
+    def heard(self, text, start, step=0.5):
+        return [(start + i * step, start + i * step + 0.4, w) for i, w in enumerate(text.split())]
+
+    def test_unread_verse_is_found(self):
+        words = self.heard("wrench in the works fix it tap it and learn", 30.0)
+        out = tf.unread_spans(words, self.LYRICS, 60.0)
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0][2], "Verse 1")
+        self.assertGreaterEqual(out[0][1], 29.0)
+
+    def test_read_take_is_clean(self):
+        words = self.heard("something is squeaking in the wheel hand me down the wrench now", 10.0) + \
+            self.heard("wrench in the works fix it tap it and learn", 30.0)
+        self.assertEqual(tf.unread_spans(words, self.LYRICS, 60.0), [])
+
+    def test_short_misheard_line_is_not_a_span(self):
+        words = self.heard("something is squeaking in the wheel hand me down the ranch now", 10.0) + \
+            self.heard("wrench in the works fix it tap it and learn", 14.0)
+        self.assertEqual(tf.unread_spans(words, self.LYRICS, 60.0), [])
+
+    def test_unread_run_under_five_seconds_passes(self):
+        words = self.heard("something is squeaking in the wheel", 10.0) + self.heard("wrench in the works fix it tap it and learn", 14.0)
+        self.assertEqual(tf.unread_spans(words, self.LYRICS, 60.0), [])
+
+    def test_no_speech_model_skips_and_passes(self):
+        self.assertEqual(tf.speech_problems("x.mp3", self.LYRICS, 60.0, hear=lambda p: None), [])
+
+    def test_speech_model_result_refuses(self):
+        self.assertTrue(tf.speech_problems("x.mp3", self.LYRICS, 60.0, hear=lambda p: self.heard("wrench in the works", 40.0)))
+
+    def test_lyric_lines_skip_tags_and_notes(self):
+        self.assertEqual(tf.lyric_lines("[Intro - bass]\n[Verse]\nHello there [clank] friend\n"), [("Verse", ["hello", "there", "friend"])])
+
+
 if __name__ == "__main__":
     unittest.main()
 
