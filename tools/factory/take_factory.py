@@ -58,7 +58,9 @@ KID_FIXES = [("shake the pipes!", "rattle the pipes!"), ("Brass blows low, here 
              ("Down low, down low, down low...", "Down we go, down we go, down we go..."), ("Up high, up high, hey!", "Up we go, up we go, hey!"),
              # 30 Oct, Jonathan's own wording for the n08 chorus (all three times) and the line after the verse
              ("Tighten it, tap it, and give it a turn!", "Fix it, tap it, and see what you learn!"),
-             ("Put it in the beat and take it home.", "Play it in the beat and take it home.")]
+             ("Put it in the beat and take it home.", "Play it in the beat and take it home."),
+             # 30 Oct, Jonathan's own wording for the n04 chorus (both times); n04 is not queued yet, one more line waits for his answer
+             ("Twist it, turn it, tick and tock,\nWe both wind it, we both rock!", "Spin it, wind it, tick and tock,\nWe both turn the key and rock!")]
 # Sung songs re-worded for kids (Jonathan, Fri 30 Oct about 8:18 AM: fix the 27 rows of double-meanings.md that are not marked low).
 # Applied to the title, ribbon, lyrics and style of every song that carries the words, so the ns-* and saas-* copies follow their parent.
 KID_SONG_FIXES = [
