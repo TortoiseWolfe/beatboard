@@ -10,7 +10,7 @@ if it has no mid-song dropout; it is sized to about -16.1 LUFS, tagged "music ma
 catalog. Votes steer which song is rendered next; the live stream's speed log makes the factory back off.
 Long rave jams are rendered in sections and joined with beat-aligned crossfades, then checked whole.
 """
-import glob, hashlib, json, math, os, random, re, shutil, subprocess, sys, time
+import difflib, glob, hashlib, json, math, os, random, re, shutil, subprocess, sys, time
 
 AUD = os.environ.get("BW_AUDIO", "/home/TurtleWolfe/repos/hub/internship/showcase/audio/band-wagon")
 STORY = os.environ.get("BW_STORY", "/home/TurtleWolfe/repos/hub/internship/showcase/band-wagon-story")
@@ -190,6 +190,76 @@ def mid_gaps(silence_log, total, head=1.0, tail=6.0):
             continue
         out.append((round(a, 1), round(d, 1)))
     return out
+
+
+ASR_PY = os.environ.get("BW_ASR_PY", os.path.expanduser("~/.cache/bandwagon-asr/venv/bin/python"))
+ASR_WORDS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "asr_words.py")
+UNREAD_SECONDS = 5.0  # 30 Oct: a sung stretch this long that no speech model can read keeps the take off the air
+
+
+def lyric_lines(lyrics):
+    """[(tag, [words])] for each sung line of the lyrics (the [Tag] lines and bracket notes are not sung)."""
+    out, tag = [], ""
+    for line in lyrics.splitlines():
+        m = re.match(r"\s*\[([^\]]*)\]\s*$", line)
+        if m:
+            tag = m.group(1).strip()
+            continue
+        words = re.findall(r"[a-z']+", re.sub(r"\[[^\]]*\]", " ", line).lower())
+        if words:
+            out.append((tag, words))
+    return out
+
+
+def unread_spans(words, lyrics, total, min_words=4, min_ratio=0.3, min_seconds=UNREAD_SECONDS):
+    """Sung stretches the speech check could not read. words = [(start, end, word)] heard in the take. Each lyric line
+    with at least min_words words is matched against what was heard; a line where fewer than min_ratio of its words were
+    heard is unread. A run of unread lines runs from the last heard word before it to the first heard word after it.
+    Returns [(start, seconds, tag)] for runs of min_seconds or more."""
+    lines = lyric_lines(lyrics)
+    heard = [re.sub(r"[^a-z']", "", w[2].lower()) for w in words]
+    flat = [(i, w) for i, (_, ws) in enumerate(lines) for w in ws]
+    sm = difflib.SequenceMatcher(None, [w for _, w in flat], heard, autojunk=False)
+    hits = {}  # line index -> heard word indexes matched
+    for a, b, n in sm.get_matching_blocks():
+        for k in range(n):
+            hits.setdefault(flat[a + k][0], []).append(b + k)
+    unread = [i for i, (_, ws) in enumerate(lines) if len(ws) >= min_words and len(hits.get(i, [])) < min_ratio * len(ws)]
+    runs, cur = [], []
+    for i in unread:
+        # lines between two unread ones that were heard well end the run; short or half-heard lines do not
+        if cur and any(len(lines[j][1]) >= min_words and len(hits.get(j, [])) >= min_ratio * len(lines[j][1]) for j in range(cur[-1] + 1, i)):
+            runs.append(cur)
+            cur = []
+        cur.append(i)
+    if cur:
+        runs.append(cur)
+    out = []
+    for run in runs:
+        before = max((j for k, v in hits.items() if k < run[0] for j in v), default=None)
+        after = min((j for k, v in hits.items() if k > run[-1] for j in v), default=None)
+        start = words[before][1] if before is not None else 0.0
+        end = words[after][0] if after is not None else total
+        if end - start >= min_seconds:
+            out.append((round(start, 1), round(end - start, 1), lines[run[0]][0]))
+    return out
+
+
+def heard_words(path, run=subprocess.run):
+    """[(start, end, word)] the speech model hears in path, or None when the speech check is not installed here."""
+    if not os.path.exists(ASR_PY):
+        return None
+    r = run(["nice", "-n", "19", ASR_PY, ASR_WORDS, path], capture_output=True, text=True, timeout=900)
+    return [tuple(w) for w in json.loads(r.stdout)] if r.returncode == 0 and r.stdout.strip() else None
+
+
+def speech_problems(path, lyrics, total, hear=heard_words):
+    """Unread sung stretches in a kid take, [] when it is clean or the check is not installed (then it says so)."""
+    words = hear(path)
+    if words is None:
+        print("SPEECH CHECK SKIPPED: no speech model here", path, flush=True)
+        return []
+    return unread_spans(words, lyrics, total)
 
 
 def song_weight(votes, priority=1.0):
@@ -676,8 +746,12 @@ def make_takes(song, catalog):
         elif seams:
             bad_seams = seam_report(dst, seams)
         ok = not gaps and not bad_seams and (song["kind"] != "rave" or total >= 900)
+        unread = []
+        if ok and song.get("kid_safe"):
+            unread = speech_problems(dst, song["lyrics"], total)
+            ok = not unread
         if not ok:
-            print("rejected", tid, "gaps", gaps, "bad seams", bad_seams, "seconds", round(total, 1), flush=True)
+            print("rejected", tid, "gaps", gaps, "bad seams", bad_seams, "unread", unread, "seconds", round(total, 1), flush=True)
             keep_rejected(dst, tid, outdir, work, song["id"], n, bad_seams, gaps, song["kind"])
             continue
         made.append({"song": song["id"], "take": tid, "take_n": n, "style": style, "seed": seed + k, "bpm": bpm, "key": key,
