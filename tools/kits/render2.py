@@ -16,9 +16,11 @@ lyr=open(sys.argv[1]).read(); style=sys.argv[2]; name=sys.argv[3]; seed=int(sys.
 t0=time.time()
 r=post("/release_task",{"prompt":style,"lyrics":lyr,"audio_duration":dur,"bpm":bpm,"time_signature":(sys.argv[8] if len(sys.argv)>8 else "4"),"vocal_language":"en","audio_format":"mp3","batch_size":2,"use_random_seed":False,"seed":seed,"inference_steps":8,"thinking":False,"use_cot_caption":False,"use_cot_language":False})
 tid=r["data"]["task_id"]
+DEADLINE=840  # seconds; the server cannot cancel a job, so stop waiting well before the factory's 900 s cap
 while True:
     q=post("/query_result",{"task_id_list":[tid]})["data"][0]
     if q["status"]!=0: break
+    if time.time()-t0>DEADLINE: print("TIMEOUT waiting for the audio server, task",tid); sys.exit(3)
     time.sleep(3)
 el=time.time()-t0
 print("status",q["status"],"elapsed %.1f"%el,"peakVRAM",peak[0])

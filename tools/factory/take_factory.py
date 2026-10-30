@@ -279,6 +279,20 @@ def size_and_tag(src, dst, title):
 RENDER_TIMEOUT = 900  # seconds; one render2.py call normally takes 1 to 5 minutes. 30 Oct: one hung for 3.5 hours and stalled the loop
 
 
+AUDIO_CONTAINER = "jingle-audio-acestep-1"
+
+
+def reset_audio_server(run=None, sleep=time.sleep):
+    """The audio server runs each job on its own and cannot cancel one, so killing render2.py leaves a stuck job (and the queue behind it) in the container. Restart the container, then wait for /health."""
+    run = run or sh
+    run("timeout", "120", "docker", "restart", AUDIO_CONTAINER)
+    for _ in range(60):
+        if run("curl", "-s", "-m", "3", "http://127.0.0.1:8001/health").stdout.find('"ok"') >= 0:
+            return True
+        sleep(5)
+    return False
+
+
 def render(lyrics_text, style, name, seed, seconds, bpm, outdir, beats=4):
     lf = f"{outdir}/{name}.lyrics.txt"
     open(lf, "w").write(lyrics_text)
@@ -287,6 +301,7 @@ def render(lyrics_text, style, name, seed, seconds, bpm, outdir, beats=4):
     except subprocess.TimeoutExpired:
         print(time.strftime("%-I:%M %p"), "TIMEOUT render", name, f"killed after {RENDER_TIMEOUT} s", flush=True)
         os.remove(lf)
+        reset_audio_server()
         return [], "TIMEOUT"
     os.remove(lf)
     files = [f"{outdir}/{name}.mp3", f"{outdir}/{name}b.mp3"]

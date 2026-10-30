@@ -383,14 +383,35 @@ class RenderTimeoutTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             hang = os.path.join(d, "hang.py")
             open(hang, "w").write("import time\ntime.sleep(60)\n")
-            old = (tf.RENDER, tf.RENDER_TIMEOUT)
+            old = (tf.RENDER, tf.RENDER_TIMEOUT, tf.reset_audio_server)
             tf.RENDER, tf.RENDER_TIMEOUT = hang, 1
+            resets = []
+            tf.reset_audio_server = lambda: resets.append(1)
             try:
                 files, note = tf.render("[Instrumental]", "style", "t", 1, 10, 100, d)
             finally:
-                tf.RENDER, tf.RENDER_TIMEOUT = old
+                tf.RENDER, tf.RENDER_TIMEOUT, tf.reset_audio_server = old
+            self.assertEqual(resets, [1])
             self.assertEqual((files, note), ([], "TIMEOUT"))
             self.assertFalse(os.path.exists(os.path.join(d, "t.lyrics.txt")))
+
+
+class ResetAudioServerTests(unittest.TestCase):
+    def test_restarts_the_container_then_waits_for_health(self):
+        calls = []
+        class R:
+            def __init__(s, out): s.stdout = out
+        def run(*a, **k):
+            calls.append(a)
+            return R('{"status":"ok"}' if a[0] == "curl" and len([c for c in calls if c[0] == "curl"]) >= 2 else "")
+        self.assertTrue(tf.reset_audio_server(run=run, sleep=lambda s: None))
+        self.assertEqual(calls[0], ("timeout", "120", "docker", "restart", tf.AUDIO_CONTAINER))
+        self.assertEqual(len([c for c in calls if c[0] == "curl"]), 2)
+
+    def test_gives_up_when_health_never_returns(self):
+        class R:
+            stdout = ""
+        self.assertFalse(tf.reset_audio_server(run=lambda *a, **k: R(), sleep=lambda s: None))
 
 
 if __name__ == "__main__":
