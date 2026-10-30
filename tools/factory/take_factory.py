@@ -68,7 +68,10 @@ KID_FIXES = [("shake the pipes!", "rattle the pipes!"), ("Brass blows low, here 
              ("Every pipe is humming and the pistons keep time,", "Every gear is humming and the wheels keep time,"),
              ("Where the steam goes up, the groove comes down,\nSeven little robots coming into town.", "Where the steam goes up, the groove rolls down,\nSeven little robots rolling into town."),
              # 30 Oct, Jonathan's own wording for the n11 line
-             ("It only comes out when the night is still,", "It only slips out when the night is still,")]
+             ("It only comes out when the night is still,", "It only slips out when the night is still,"),
+             # 30 Oct, Jonathan's own wording for the n12 lines (chorus both times)
+             ("Little notes are coming round.", "Little notes are floating round."), ("Every song comes back in time.", "Every song returns in time."),
+             ("Out of the hiss comes a single clean tone,", "Out of the hiss rings a single clean tone,")]
 # Sung songs re-worded for kids (Jonathan, Fri 30 Oct about 8:18 AM: fix the 27 rows of double-meanings.md that are not marked low).
 # Applied to the title, ribbon, lyrics and style of every song that carries the words, so the ns-* and saas-* copies follow their parent.
 KID_SONG_FIXES = [
@@ -120,7 +123,8 @@ KID_REDO = ["story-8", "story-9", "story-12", "story-11", "story-13", "bike-a", 
             "ns-story-12-polka", "ns-story-8-monsterlite"]
 NIGHT_SET = [("n01", "Seven Ghosts in the Wiring"), ("n08", "Wrench in the Works"), ("n09", "Boiler Room Boogie")]
 # Kit songs whose held take is replaced under the same id (n02 Lantern Parade: its chorus carried the "here we come" joke; n04 Who Winds the Music Box?: Jonathan's new chorus and verse 2 line).
-KIT_REDO = [("n02", "Lantern Parade"), ("n04", "Who Winds the Music Box?"), ("n05", "The Night Watch"), ("n07", "Steam Hiss Shuffle"), ("n11", "Ghost in the Music Box")]
+KIT_REDO = [("n02", "Lantern Parade"), ("n04", "Who Winds the Music Box?"), ("n05", "The Night Watch"), ("n07", "Steam Hiss Shuffle"), ("n11", "Ghost in the Music Box"),
+            ("n06", "Count Me In"), ("n12", "Signal Lost, Signal Found"), ("v1-theme", "The Band Wagon Theme Song")]
 JINGLE = os.environ.get("BW_JINGLE", os.path.join(os.path.dirname(STORY.rstrip("/")), "band-wagon-jingle.md"))
 
 # ---------- pure helpers (tested) ----------
@@ -444,6 +448,9 @@ def night_songs(path=None, songs=None, prefix="night-"):
     t = open(path or JINGLE).read()
     out = []
     for nid, title in (songs or NIGHT_SET):
+        if nid == "v1-theme":
+            out.append(v1_theme_song(t, title))
+            continue
         part = re.split(rf"(?:^|\n)### {nid}: ", t)[1].split("\n### ")[0]
         m = re.search(r"```\n(.*?)```", part, re.S)
         s = re.search(r'\nStyle: "(.*?)"', part)
@@ -451,6 +458,15 @@ def night_songs(path=None, songs=None, prefix="night-"):
         out.append({"id": f"{prefix}{nid}", "title": title, "lyrics": kid_reword(m.group(1)), "style": s.group(1), "bpm": bpm,
                     "seconds": render_seconds(150), "kind": "kid", "priority": 3.0, "kid_safe": True})
     return out
+
+
+def v1_theme_song(text, title):
+    """The v1 jingle (the 'Full version' block of band-wagon-jingle.md, style S1, no ### heading) as a kid_safe entry with id v1-theme."""
+    part = text.split("\n## Full version", 1)[1].split("\n## ", 1)[0]
+    lyrics = re.search(r"```\n(.*?)```", part, re.S).group(1)
+    style = re.search(r'- S1 [^\n]*?: "(.*?)"', text)[1]
+    return {"id": "v1-theme", "title": title, "lyrics": kid_reword(lyrics), "style": style, "bpm": 118,
+            "seconds": render_seconds(55), "kind": "kid", "priority": 3.0, "kid_safe": True}
 
 
 def kit_redo_songs(path=None):
