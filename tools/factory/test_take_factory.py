@@ -434,6 +434,21 @@ class WaitGpuFreeTests(unittest.TestCase):
         self.assertFalse(tf.wait_gpu_free(need_mb=2048, free_mb=lambda: 100, sleep=sleep, clock=lambda: now[0], wait=90))
         self.assertEqual(now[0], 90)
 
+    def test_timeout_wakes_the_hub(self):
+        now, said = [0], []
+        def sleep(s): now[0] += s
+        old = tf.ALERT
+        tf.ALERT = said.append
+        try:
+            tf.wait_gpu_free(need_mb=1200, free_mb=lambda: 100, sleep=sleep, clock=lambda: now[0], wait=60)
+        finally:
+            tf.ALERT = old
+        self.assertEqual(len(said), 1)
+        self.assertIn("GPU WAIT TIMEOUT", said[0])
+
+    def test_wait_and_line_defaults(self):
+        self.assertEqual((tf.RENDER_GPU_NEED_MB, tf.RENDER_GPU_WAIT), (1200, 600))
+
 
 class ResetAudioServerTests(unittest.TestCase):
     def test_restarts_the_container_then_waits_for_health(self):
