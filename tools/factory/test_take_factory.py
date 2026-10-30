@@ -414,6 +414,20 @@ class ResetAudioServerTests(unittest.TestCase):
         self.assertFalse(tf.reset_audio_server(run=lambda *a, **k: R(), sleep=lambda s: None))
 
 
+class BikeASilenceTests(unittest.TestCase):
+    def test_bike_a_never_asks_for_silence_and_keeps_its_sung_words(self):
+        old = ("[Intro 0:00 - one bicycle-wheel tick, alone, quiet, then another, then a steady four-on-the-floor kick under it]\n"
+               "[Break - everything stops except the wheel tick, then Crash counts back in: one, two, three, four]\n"
+               "[Chant - the crowd and the band]\nHands on the bars, feet on the pedals,\n"
+               "[Section - a long peak, then a slow fade of one instrument at a time over about 90 seconds]\n"
+               "[Outro - the wheel tick alone, then one bell ring]\n")
+        new = tf.kid_song_fix({"id": "bike-a", "lyrics": old})["lyrics"]
+        for gone in ("alone, quiet", "everything stops", "tick alone"):
+            self.assertNotIn(gone, new)
+        for kept in ("a soft pad under one bicycle-wheel tick", "low bass hum", "Hands on the bars, feet on the pedals,", "soft pad holding under", "over a soft pad, then one bell ring"):
+            self.assertIn(kept, new)
+
+
 if __name__ == "__main__":
     unittest.main()
 

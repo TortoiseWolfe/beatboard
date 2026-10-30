@@ -75,6 +75,11 @@ KID_FIXES = [("shake the pipes!", "rattle the pipes!"), ("Brass blows low, here 
 # Sung songs re-worded for kids (Jonathan, Fri 30 Oct about 8:18 AM: fix the 27 rows of double-meanings.md that are not marked low).
 # Applied to the title, ribbon, lyrics and style of every song that carries the words, so the ns-* and saas-* copies follow their parent.
 KID_SONG_FIXES = [
+    # 30 Oct, bike-a (Pedal Beat) was refused 6 times for silent gaps: 10 of 30 gaps fell in the first 45 s (intro), 5 near 125 to 160 s (break), 14 after 180 s (fade and outro) -- all places the lyrics ask for silence. Never silent now; no sung words change.
+    ("one bicycle-wheel tick, alone, quiet, then another", "a soft pad under one bicycle-wheel tick, then another"),
+    ("everything stops except the wheel tick, then Crash counts back in", "everything drops to a low bass hum and the wheel tick, then Crash counts back in"),
+    ("a slow fade of one instrument at a time over about 90 seconds", "a slow fade of one instrument at a time, a soft pad holding under, over about 90 seconds"),
+    ("the wheel tick alone, then one bell ring", "the wheel tick over a soft pad, then one bell ring"),
     ("The horn has made the sound bigger.", "The speaker has made the sound louder."),
     ("The horn can make it bigger,", "The speaker can make it louder,"),
     ("But it can only make more of whatever's put inside.", "But it can only play whatever's sent inside the sound."),
