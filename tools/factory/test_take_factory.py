@@ -525,24 +525,52 @@ class SpeechGateTests(unittest.TestCase):
     def test_speech_model_result_refuses(self):
         self.assertTrue(tf.speech_problems("x.mp3", self.LYRICS, 60.0, hear=lambda p: self.heard("wrench in the works", 40.0)))
 
-    def test_missing_line_refuses_the_take(self):
+    def test_skipped_line_is_logged_never_refused(self):
         words = self.heard("something is squeaking in the wheel", 10.0) + self.heard("wrench in the works fix it tap it and learn", 14.0)
-        out = tf.speech_problems("x.mp3", self.LYRICS, 60.0, hear=lambda p: words)
-        self.assertEqual(out, [("missing line", "Verse 1", "hand me down the wrench now")])
+        self.assertEqual(tf.missing_lines(words, self.LYRICS), [("Verse 1", "hand me down the wrench now")])
+        self.assertEqual(tf.speech_problems("x.mp3", self.LYRICS, 60.0, hear=lambda p: words), [])
 
-    def test_small_spelling_slips_are_not_missing(self):
+    def test_small_spelling_slips_are_not_reworded(self):
         words = self.heard("something is squeaking in the wheel hand me down the ranch now", 10.0) + \
             self.heard("wrench in the work fix it tap it and learned", 30.0)
-        self.assertEqual(tf.missing_lines(words, self.LYRICS), [])
+        self.assertEqual(tf.reworded_lines(words, self.LYRICS), [])
+
+    def test_line_sung_as_other_words_is_found(self):
+        lyr = "[Verse]\nwhere the steam goes up the groove rolls down\n[Chorus]\nstomp on the floor give the crowd a bump\n"
+        words = self.heard("where the steam goes up the debris stomp on the floor give the crowd a bump", 5.0)
+        self.assertEqual(tf.reworded_lines(words, lyr), ["where the steam goes up the groove rolls down"])
+
+    def test_both_models_must_read_it_as_other_words(self):
+        lyr = "[Verse]\nwhere the steam goes up the groove rolls down\n[Chorus]\nstomp on the floor give the crowd a bump\n"
+        wrong = self.heard("where the steam goes up the debris stomp on the floor give the crowd a bump", 5.0)
+        right = self.heard("where the steam goes up the groove rolls down stomp on the floor give the crowd a bump", 5.0)
+        self.assertEqual(tf.speech_problems("x.mp3", lyr, 60.0, hear=lambda p: wrong, hear_alt=lambda p: wrong), [("sung as other words", "where the steam goes up the groove rolls down")])
+        self.assertEqual(tf.speech_problems("x.mp3", lyr, 60.0, hear=lambda p: wrong, hear_alt=lambda p: right), [])
 
     def test_repeated_chorus_skipped_once_is_found(self):
         lyr = "[Chorus]\nsteam hiss steam hiss shuffle\n[Verse]\none two three four five\n[Chorus]\nsteam hiss steam hiss shuffle\n"
         words = self.heard("steam hiss steam hiss shuffle one two three four five", 5.0)
         self.assertEqual(tf.missing_lines(words, lyr), [("Chorus", "steam hiss steam hiss shuffle")])
 
-    def test_allowed_missing_lets_a_take_through(self):
-        words = self.heard("something is squeaking in the wheel", 10.0) + self.heard("wrench in the works fix it tap it and learn", 14.0)
-        self.assertEqual(tf.speech_problems("x.mp3", self.LYRICS, 60.0, hear=lambda p: words, allowed_missing=1), [])
+    def test_speech_checks_take_turns(self):
+        import subprocess, sys, tempfile, threading, time
+        self.addCleanup(setattr, tf, "ASR_LOCK", tf.ASR_LOCK)
+        self.addCleanup(setattr, tf, "ASR_PY", tf.ASR_PY)
+        tf.ASR_LOCK, tf.ASR_PY = os.path.join(tempfile.mkdtemp(), "lock"), sys.executable
+        live, peak, guard = [0], [0], threading.Lock()
+
+        def run(cmd, **kw):
+            with guard:
+                live[0] += 1
+                peak[0] = max(peak[0], live[0])
+            time.sleep(0.15)
+            with guard:
+                live[0] -= 1
+            return subprocess.CompletedProcess(cmd, 0, "[]", "")
+        threads = [threading.Thread(target=tf.heard_words, args=("x.mp3", run)) for _ in range(4)]
+        [t.start() for t in threads]
+        [t.join() for t in threads]
+        self.assertEqual(peak[0], 1)
 
     def test_lyric_lines_skip_tags_and_notes(self):
         self.assertEqual(tf.lyric_lines("[Intro - bass]\n[Verse]\nHello there [clank] friend\n"), [("Verse", ["hello", "there", "friend"])])

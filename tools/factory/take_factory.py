@@ -10,7 +10,7 @@ if it has no mid-song dropout; it is sized to about -16.1 LUFS, tagged "music ma
 catalog. Votes steer which song is rendered next; the live stream's speed log makes the factory back off.
 Long rave jams are rendered in sections and joined with beat-aligned crossfades, then checked whole.
 """
-import difflib, glob, hashlib, json, math, os, random, re, shutil, subprocess, sys, time
+import difflib, fcntl, glob, hashlib, json, math, os, random, re, shutil, subprocess, sys, time
 
 AUD = os.environ.get("BW_AUDIO", "/home/TurtleWolfe/repos/hub/internship/showcase/audio/band-wagon")
 STORY = os.environ.get("BW_STORY", "/home/TurtleWolfe/repos/hub/internship/showcase/band-wagon-story")
@@ -193,6 +193,7 @@ def mid_gaps(silence_log, total, head=1.0, tail=6.0):
 
 
 ASR_MODEL = os.environ.get("BW_ASR_MODEL", "medium")  # 30 Oct: medium reads sung words far better than small (about 25 s for a 150 s take)
+ASR_MODEL_ALT = "small"  # the second reader: a line counts as sung as other words only when both models read it so
 ASR_PY = os.environ.get("BW_ASR_PY", os.path.expanduser("~/.cache/bandwagon-asr/venv/bin/python"))
 ASR_WORDS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "asr_words.py")
 UNREAD_SECONDS = 5.0  # 30 Oct: a sung stretch this long that no speech model can read keeps the take off the air
@@ -246,16 +247,25 @@ def unread_spans(words, lyrics, total, min_words=4, min_ratio=0.3, min_seconds=U
     return out
 
 
-def heard_words(path, run=subprocess.run):
-    """[(start, end, word)] the speech model hears in path, or None when the speech check is not installed here."""
+ASR_LOCK = os.environ.get("BW_ASR_LOCK", os.path.expanduser("~/.cache/bandwagon-asr/lock"))
+
+
+def heard_words(path, run=subprocess.run, model=None):
+    """[(start, end, word)] the speech model hears in path, or None when the speech check is not installed here.
+    One speech check runs at a time on the machine (a file lock, held until the model's process has exited): each holds about 3 GB,
+    and the t and tb candidates and the second reader must wait their turn so memory never doubles (30 Oct 7:31 PM, tower memory low)."""
     if not os.path.exists(ASR_PY):
         return None
-    r = run(["nice", "-n", "19", ASR_PY, ASR_WORDS, path, ASR_MODEL], capture_output=True, text=True, timeout=900)
+    os.makedirs(os.path.dirname(ASR_LOCK), exist_ok=True)
+    with open(ASR_LOCK, "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        r = run(["nice", "-n", "19", ASR_PY, ASR_WORDS, path, model or ASR_MODEL], capture_output=True, text=True, timeout=900)
     return [tuple(w) for w in json.loads(r.stdout)] if r.returncode == 0 and r.stdout.strip() else None
 
 
-MISSING_RATIO = 0.34  # 30 Oct 7:30 PM: a lyric line of 4 words or more of which fewer than this share was heard is missing or sung as other words
-MAX_MISSING_LINES = 0  # lyric lines allowed to be missing before a kid take is refused (hub 30 Oct 7:20 PM: a missing line refuses it)
+SUNG_SHARE = 0.5  # a lyric line with at least this share of its words heard was sung
+REWORD_TAIL = 2  # lyric words of a sung line left unmatched in one stretch before it can count as sung as other words
+REWORD_ALIKE = 0.5  # letters of the lyric stretch and of the heard stretch must be at least this alike, else the line was sung as other words
 
 
 def word_alike(a, b):
@@ -263,9 +273,10 @@ def word_alike(a, b):
     return a == b or difflib.SequenceMatcher(None, a, b).ratio() >= 0.7
 
 
-def line_scores(words, lyrics):
-    """[(tag, [words], share heard)] per sung lyric line: the heard words are lined up with the lyric in order (a longest common
-    subsequence on alike words), so a repeated chorus is matched where it was sung and a skipped line scores 0."""
+def align_lyrics(words, lyrics):
+    """(lines, flat, heard, pairs): the heard words lined up with the lyric in order (longest common subsequence on alike words).
+    pairs = [(flat index, heard index)]; flat = [(line index, word)] for every lyric word, so a repeated chorus is matched where it
+    was sung and a skipped line has no pair."""
     lines = lyric_lines(lyrics)
     heard = [h for h in (re.sub(r"[^a-z']", "", w[2].lower()) for w in words) if h]
     flat = [(i, w) for i, (_, ws) in enumerate(lines) for w in ws]
@@ -274,35 +285,67 @@ def line_scores(words, lyrics):
     for i in range(n - 1, -1, -1):
         for j in range(m - 1, -1, -1):
             best[i][j] = max(best[i + 1][j], best[i][j + 1], best[i + 1][j + 1] + (1 if word_alike(flat[i][1], heard[j]) else 0))
-    hits, i, j = {}, 0, 0
+    pairs, i, j = [], 0, 0
     while i < n and j < m:
         if word_alike(flat[i][1], heard[j]) and best[i][j] == best[i + 1][j + 1] + 1:
-            hits[flat[i][0]] = hits.get(flat[i][0], 0) + 1
+            pairs.append((i, j))
             i += 1
             j += 1
         elif best[i + 1][j] >= best[i][j + 1]:
             i += 1
         else:
             j += 1
-    return [(tag, ws, hits.get(k, 0) / len(ws)) for k, (tag, ws) in enumerate(lines)]
+    return lines, flat, heard, pairs
 
 
-def missing_lines(words, lyrics, min_words=4, ratio=MISSING_RATIO):
-    """[(tag, line text)] of the lyric lines (min_words words or more) that the speech check did not hear, or heard as other words."""
-    return [(tag, " ".join(ws)) for tag, ws, share in line_scores(words, lyrics) if len(ws) >= min_words and share < ratio]
+def missing_lines(words, lyrics, min_words=4, ratio=0.34):
+    """[(tag, line text)] of the lyric lines (min_words words or more) with under ratio of their words heard. Logged only: most of
+    them are the song ending (the 150 s cap) before its last verses, or a quiet line, so they never refuse a take."""
+    lines, flat, heard, pairs = align_lyrics(words, lyrics)
+    hits = {}
+    for i, _ in pairs:
+        hits[flat[i][0]] = hits.get(flat[i][0], 0) + 1
+    return [(tag, " ".join(ws)) for k, (tag, ws) in enumerate(lines) if len(ws) >= min_words and hits.get(k, 0) < ratio * len(ws)]
 
 
-def speech_problems(path, lyrics, total, hear=heard_words, allowed_missing=None):
-    """What keeps a kid take off the air: unread sung stretches of 5 s or more, and more than allowed_missing lyric lines
-    missing or sung as other words. [] when it is clean or the check is not installed (then it says so)."""
+def reworded_lines(words, lyrics):
+    """Lines the singer sang as other words than the lyric: [line text] where, in a line that was mostly sung (SUNG_SHARE), a stretch of
+    REWORD_TAIL or more of its lyric words sits between two matched words (or after the last one) and the words heard there are
+    not alike in letters (a stray 'debris' where the lyric says 'groove rolls down'). Nothing heard there is a skipped line, not this."""
+    lines, flat, heard, pairs = align_lyrics(words, lyrics)
+    hits = {}
+    for i, _ in pairs:
+        hits[flat[i][0]] = hits.get(flat[i][0], 0) + 1
+    out = []
+    for a, (p1, j1) in enumerate(pairs):
+        p2, j2 = pairs[a + 1] if a + 1 < len(pairs) else (len(flat), len(heard))
+        ln = flat[p1][0]
+        if hits[ln] < SUNG_SHARE * len(lines[ln][1]):
+            continue
+        lyr, hs = [w for q, w in flat[p1 + 1:p2] if q == ln], heard[j1 + 1:j2]
+        if len(lyr) >= REWORD_TAIL and hs and difflib.SequenceMatcher(None, "".join(lyr), "".join(hs)).ratio() < REWORD_ALIKE:
+            out.append(" ".join(lines[ln][1]))
+    return out
+
+
+def speech_problems(path, lyrics, total, hear=heard_words, hear_alt=None):
+    """What keeps a kid take off the air: unread sung stretches of 5 s or more, and lines sung as other words than the lyric that
+    both speech models (medium and small) read that way. Missing lines are printed, never refused on. [] when it is clean or the
+    check is not installed (then it says so)."""
     words = hear(path)
     if words is None:
         print("SPEECH CHECK SKIPPED: no speech model here", path, flush=True)
         return []
     out = list(unread_spans(words, lyrics, total))
     missing = missing_lines(words, lyrics)
-    if len(missing) > (MAX_MISSING_LINES if allowed_missing is None else allowed_missing):
-        out += [("missing line", tag, text) for tag, text in missing]
+    if missing:
+        print("missing lines (logged only)", missing, flush=True)
+    wrong = reworded_lines(words, lyrics)
+    if wrong:
+        alt = (hear_alt or (lambda p: heard_words(p, model=ASR_MODEL_ALT)))(path)
+        if alt is not None:
+            wrong_alt = reworded_lines(alt, lyrics)
+            out += [("sung as other words", line) for line in wrong if line in wrong_alt]
     return out
 
 
