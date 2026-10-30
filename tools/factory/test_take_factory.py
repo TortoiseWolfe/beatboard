@@ -1,3 +1,4 @@
+import os
 import unittest
 import take_factory as tf
 
@@ -155,6 +156,21 @@ class NotMeasurableTests(unittest.TestCase):
         finally:
             tf.lufs_window = orig
         self.assertEqual([b[3] for b in bad], ["seam not measurable"])
+
+
+class KeepRejectedTests(unittest.TestCase):
+    def test_four_part_seam_faults_are_kept_aside(self):
+        import tempfile, json as j
+        with tempfile.TemporaryDirectory() as d:
+            src = f"{d}/rave-x-t0.mp3"; open(src, "wb").write(b"x")
+            orig = tf.loudness_curve
+            tf.loudness_curve = lambda p, s, n: [-20.0]
+            try:
+                tf.keep_rejected(src, "rave-x-t0", d, d, "rave-x", 0, [(495.49, 3.9, 3.9, "a dip that goes the wrong way")], [], 5)
+            finally:
+                tf.loudness_curve = orig
+            self.assertTrue(os.path.exists(f"{d}/_rejected/rave-x-t0.mp3"))
+            self.assertIn("495.49", j.load(open(f"{d}/_rejected/rave-x-t0.seams.json"))["curves_M_dB"])
 
 
 class TimingTests(unittest.TestCase):

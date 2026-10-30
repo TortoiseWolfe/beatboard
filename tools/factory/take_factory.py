@@ -309,7 +309,7 @@ def keep_rejected(src, tid, outdir, work, song_id, n, bad_seams, gaps, secs):
     rej = f"{outdir}/_rejected"; os.makedirs(rej, exist_ok=True)
     dst = f"{rej}/{tid}.mp3"
     shutil.move(src, dst)
-    curves = {str(t): loudness_curve(dst, t - 20, 60) for t, _ in bad_seams}
+    curves = {str(t): loudness_curve(dst, t - 20, 60) for t, *_ in bad_seams}
     json.dump({"take": tid, "gaps": gaps, "bad_seams": bad_seams, "curves_M_dB": curves}, open(f"{rej}/{tid}.seams.json", "w"))
     for f in glob.glob(f"{work}/{song_id}-t{n}-s*.mp3"):
         shutil.move(f, f"{rej}/{os.path.basename(f)}")
