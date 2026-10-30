@@ -192,6 +192,7 @@ def mid_gaps(silence_log, total, head=1.0, tail=6.0):
     return out
 
 
+ASR_MODEL = os.environ.get("BW_ASR_MODEL", "medium")  # 30 Oct: medium reads sung words far better than small (about 25 s for a 150 s take)
 ASR_PY = os.environ.get("BW_ASR_PY", os.path.expanduser("~/.cache/bandwagon-asr/venv/bin/python"))
 ASR_WORDS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "asr_words.py")
 UNREAD_SECONDS = 5.0  # 30 Oct: a sung stretch this long that no speech model can read keeps the take off the air
@@ -249,17 +250,60 @@ def heard_words(path, run=subprocess.run):
     """[(start, end, word)] the speech model hears in path, or None when the speech check is not installed here."""
     if not os.path.exists(ASR_PY):
         return None
-    r = run(["nice", "-n", "19", ASR_PY, ASR_WORDS, path], capture_output=True, text=True, timeout=900)
+    r = run(["nice", "-n", "19", ASR_PY, ASR_WORDS, path, ASR_MODEL], capture_output=True, text=True, timeout=900)
     return [tuple(w) for w in json.loads(r.stdout)] if r.returncode == 0 and r.stdout.strip() else None
 
 
-def speech_problems(path, lyrics, total, hear=heard_words):
-    """Unread sung stretches in a kid take, [] when it is clean or the check is not installed (then it says so)."""
+MISSING_RATIO = 0.34  # 30 Oct 7:30 PM: a lyric line of 4 words or more of which fewer than this share was heard is missing or sung as other words
+MAX_MISSING_LINES = 0  # lyric lines allowed to be missing before a kid take is refused (hub 30 Oct 7:20 PM: a missing line refuses it)
+
+
+def word_alike(a, b):
+    """Two words that are the same or differ by a small spelling slip ('steam hiss' heard as 'steam his')."""
+    return a == b or difflib.SequenceMatcher(None, a, b).ratio() >= 0.7
+
+
+def line_scores(words, lyrics):
+    """[(tag, [words], share heard)] per sung lyric line: the heard words are lined up with the lyric in order (a longest common
+    subsequence on alike words), so a repeated chorus is matched where it was sung and a skipped line scores 0."""
+    lines = lyric_lines(lyrics)
+    heard = [h for h in (re.sub(r"[^a-z']", "", w[2].lower()) for w in words) if h]
+    flat = [(i, w) for i, (_, ws) in enumerate(lines) for w in ws]
+    n, m = len(flat), len(heard)
+    best = [[0] * (m + 1) for _ in range(n + 1)]
+    for i in range(n - 1, -1, -1):
+        for j in range(m - 1, -1, -1):
+            best[i][j] = max(best[i + 1][j], best[i][j + 1], best[i + 1][j + 1] + (1 if word_alike(flat[i][1], heard[j]) else 0))
+    hits, i, j = {}, 0, 0
+    while i < n and j < m:
+        if word_alike(flat[i][1], heard[j]) and best[i][j] == best[i + 1][j + 1] + 1:
+            hits[flat[i][0]] = hits.get(flat[i][0], 0) + 1
+            i += 1
+            j += 1
+        elif best[i + 1][j] >= best[i][j + 1]:
+            i += 1
+        else:
+            j += 1
+    return [(tag, ws, hits.get(k, 0) / len(ws)) for k, (tag, ws) in enumerate(lines)]
+
+
+def missing_lines(words, lyrics, min_words=4, ratio=MISSING_RATIO):
+    """[(tag, line text)] of the lyric lines (min_words words or more) that the speech check did not hear, or heard as other words."""
+    return [(tag, " ".join(ws)) for tag, ws, share in line_scores(words, lyrics) if len(ws) >= min_words and share < ratio]
+
+
+def speech_problems(path, lyrics, total, hear=heard_words, allowed_missing=None):
+    """What keeps a kid take off the air: unread sung stretches of 5 s or more, and more than allowed_missing lyric lines
+    missing or sung as other words. [] when it is clean or the check is not installed (then it says so)."""
     words = hear(path)
     if words is None:
         print("SPEECH CHECK SKIPPED: no speech model here", path, flush=True)
         return []
-    return unread_spans(words, lyrics, total)
+    out = list(unread_spans(words, lyrics, total))
+    missing = missing_lines(words, lyrics)
+    if len(missing) > (MAX_MISSING_LINES if allowed_missing is None else allowed_missing):
+        out += [("missing line", tag, text) for tag, text in missing]
+    return out
 
 
 def song_weight(votes, priority=1.0):

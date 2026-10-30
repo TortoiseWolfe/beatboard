@@ -525,6 +525,25 @@ class SpeechGateTests(unittest.TestCase):
     def test_speech_model_result_refuses(self):
         self.assertTrue(tf.speech_problems("x.mp3", self.LYRICS, 60.0, hear=lambda p: self.heard("wrench in the works", 40.0)))
 
+    def test_missing_line_refuses_the_take(self):
+        words = self.heard("something is squeaking in the wheel", 10.0) + self.heard("wrench in the works fix it tap it and learn", 14.0)
+        out = tf.speech_problems("x.mp3", self.LYRICS, 60.0, hear=lambda p: words)
+        self.assertEqual(out, [("missing line", "Verse 1", "hand me down the wrench now")])
+
+    def test_small_spelling_slips_are_not_missing(self):
+        words = self.heard("something is squeaking in the wheel hand me down the ranch now", 10.0) + \
+            self.heard("wrench in the work fix it tap it and learned", 30.0)
+        self.assertEqual(tf.missing_lines(words, self.LYRICS), [])
+
+    def test_repeated_chorus_skipped_once_is_found(self):
+        lyr = "[Chorus]\nsteam hiss steam hiss shuffle\n[Verse]\none two three four five\n[Chorus]\nsteam hiss steam hiss shuffle\n"
+        words = self.heard("steam hiss steam hiss shuffle one two three four five", 5.0)
+        self.assertEqual(tf.missing_lines(words, lyr), [("Chorus", "steam hiss steam hiss shuffle")])
+
+    def test_allowed_missing_lets_a_take_through(self):
+        words = self.heard("something is squeaking in the wheel", 10.0) + self.heard("wrench in the works fix it tap it and learn", 14.0)
+        self.assertEqual(tf.speech_problems("x.mp3", self.LYRICS, 60.0, hear=lambda p: words, allowed_missing=1), [])
+
     def test_lyric_lines_skip_tags_and_notes(self):
         self.assertEqual(tf.lyric_lines("[Intro - bass]\n[Verse]\nHello there [clank] friend\n"), [("Verse", ["hello", "there", "friend"])])
 
