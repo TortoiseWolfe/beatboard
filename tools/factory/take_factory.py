@@ -49,7 +49,11 @@ DOUBLE_MEANING = [r"\bbottom\b", r"\bbooty\b", r"\bballs?\b", r"\bwood\b", r"\bs
 KID_FIXES = [("shake the pipes!", "rattle the pipes!"), ("Brass blows low, here we come.", "Brass plays low, here we go."),
              ("is going to come.", "is going to arrive."), ("to the ones who come.", "to the ones who join in."),
              ("it's the chain or the screw,", "it's the chain or the bolt,"), ("it says here I come!", "it says here I am!"),
-             ("Crash, pounding]", "Crash, drumming]")]
+             ("Crash, pounding]", "Crash, drumming]"),
+             # 30 Oct about 11:45 AM, Jonathan: the same "here we come" joke in three more songs (double-meanings.md, kit section; the screen's wording)
+             ("Brass is on the horn, here we come!", "Brass is on the trumpet, hear it hum!"),
+             ("The Band Wagon's rolling, here we come!", "The Band Wagon's rolling, hear the drum!"),
+             ("One, two, three, four, boom, here we come!", "One, two, three, four, boom, hear us drum!")]
 # Sung songs re-worded for kids (Jonathan, Fri 30 Oct about 8:18 AM: fix the 27 rows of double-meanings.md that are not marked low).
 # Applied to the title, ribbon, lyrics and style of every song that carries the words, so the ns-* and saas-* copies follow their parent.
 KID_SONG_FIXES = [
@@ -100,6 +104,8 @@ KID_REDO = ["story-8", "story-9", "story-12", "story-11", "story-13", "bike-a", 
             "finding-the-bottom", "ukraine-warriorz-cry", "saas-a", "saas-b", "saas-c", "ns-story-9-puppet", "ns-bike-b-jazzrave",
             "ns-story-12-polka", "ns-story-8-monsterlite"]
 NIGHT_SET = [("n01", "Seven Ghosts in the Wiring"), ("n08", "Wrench in the Works"), ("n09", "Boiler Room Boogie")]
+# Kit songs whose held take is replaced under the same id (n02 Lantern Parade: its chorus carried the "here we come" joke).
+KIT_REDO = [("n02", "Lantern Parade")]
 JINGLE = os.environ.get("BW_JINGLE", os.path.join(os.path.dirname(STORY.rstrip("/")), "band-wagon-jingle.md"))
 
 # ---------- pure helpers (tested) ----------
@@ -418,18 +424,23 @@ def stream_busy():
     return stream_speed(open(logs[-1]).read())
 
 
-def night_songs(path=None):
+def night_songs(path=None, songs=None, prefix="night-"):
     """The three Night Set songs re-worded for kids, as kid_safe song entries (ids night-n01, night-n08, night-n09)."""
     t = open(path or JINGLE).read()
     out = []
-    for nid, title in NIGHT_SET:
+    for nid, title in (songs or NIGHT_SET):
         part = re.split(rf"(?:^|\n)### {nid}: ", t)[1].split("\n### ")[0]
         m = re.search(r"```\n(.*?)```", part, re.S)
         s = re.search(r'\nStyle: "(.*?)"', part)
         bpm = int(re.search(r"\((\d+) BPM", part)[1])
-        out.append({"id": f"night-{nid}", "title": title, "lyrics": kid_reword(m.group(1)), "style": s.group(1), "bpm": bpm,
+        out.append({"id": f"{prefix}{nid}", "title": title, "lyrics": kid_reword(m.group(1)), "style": s.group(1), "bpm": bpm,
                     "seconds": render_seconds(150), "kind": "kid", "priority": 3.0, "kid_safe": True})
     return out
+
+
+def kit_redo_songs(path=None):
+    """KIT_REDO songs re-worded for kids, as kid_safe entries that keep the kit id (the new take replaces the held one)."""
+    return night_songs(path, KIT_REDO, "")
 
 
 def redo_songs(path=None):

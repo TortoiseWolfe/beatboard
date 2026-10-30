@@ -1,4 +1,5 @@
 import os
+import re
 import unittest
 import take_factory as tf
 
@@ -326,6 +327,30 @@ class KidFixAllTests(unittest.TestCase):
     def test_pairs_do_not_loop(self):
         for old, new in tf.KID_SONG_FIXES:
             self.assertNotIn(old, new)
+
+
+class KitRepeatTests(unittest.TestCase):
+    """Jonathan, 30 Oct about 11:45 AM: the 'here we come' joke is fixed in n02, n06 and the v1 theme too."""
+    def test_three_more_lines_are_reworded(self):
+        for old, new in [("Brass is on the horn, here we come!", "Brass is on the trumpet, hear it hum!"),
+                         ("The Band Wagon's rolling, here we come!", "The Band Wagon's rolling, hear the drum!"),
+                         ("One, two, three, four, boom, here we come!", "One, two, three, four, boom, hear us drum!")]:
+            self.assertEqual(tf.kid_reword("a\n" + old + "\nb"), "a\n" + new + "\nb")
+            self.assertTrue(any(re.search(p, old, re.I) for p in tf.DOUBLE_MEANING))
+            self.assertFalse(any(re.search(p, new, re.I) for p in tf.DOUBLE_MEANING))
+
+    def test_n02_keeps_its_id_and_is_kid_safe(self):
+        jingle = os.path.join(os.path.dirname(__file__), "jingle-fixture.md")
+        text = "### n02: Lantern Parade (120 BPM, 150 s)\n\n```\n[Chorus]\nLight the glow, beat the drum,\nThe Band Wagon's rolling, here we come!\n```\n\nStyle: \"dark march\"\n"
+        with open(jingle, "w") as f:
+            f.write(text)
+        try:
+            out = tf.kit_redo_songs(jingle)
+        finally:
+            os.remove(jingle)
+        self.assertEqual([s["id"] for s in out], ["n02"])
+        self.assertIn("hear the drum!", out[0]["lyrics"])
+        self.assertEqual(tf.title_problems(out[0]["lyrics"], out[0]["title"]), [])
 
 
 if __name__ == "__main__":
