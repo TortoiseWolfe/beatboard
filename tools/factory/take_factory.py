@@ -298,9 +298,34 @@ def reset_audio_server(run=None, sleep=time.sleep):
     return False
 
 
+RENDER_GPU_NEED_MB = 2048  # free graphics memory the server needs for one decode; with less it falls back to a CPU decode that runs for hours (30 Oct 5:15 PM: 0.05 GB free)
+RENDER_GPU_WAIT = 1200  # seconds to wait for it before rendering anyway
+
+
+def wait_gpu_free(need_mb=None, free_mb=None, sleep=time.sleep, clock=time.time, wait=None):
+    """Hold a render until the card has need_mb free (the other user is openclaw-ollama, which frees it when Hatch goes idle). True when there is room."""
+    need_mb = need_mb or RENDER_GPU_NEED_MB
+    if free_mb is None:
+        if not shutil.which("nvidia-smi"):
+            return True  # no card to read (CI, a laptop): nothing to wait for
+        free_mb = gpu_free_mb
+    wait = RENDER_GPU_WAIT if wait is None else wait
+    start, said = clock(), False
+    while free_mb() < need_mb:
+        if not said:
+            print(time.strftime("%-I:%M %p"), f"GPU WAIT: under {need_mb} MB free on the card, holding the render", flush=True)
+            said = True
+        if clock() - start >= wait:
+            print(time.strftime("%-I:%M %p"), f"GPU WAIT over after {wait} s, rendering anyway", flush=True)
+            return False
+        sleep(30)
+    return True
+
+
 def render(lyrics_text, style, name, seed, seconds, bpm, outdir, beats=4):
     lf = f"{outdir}/{name}.lyrics.txt"
     open(lf, "w").write(lyrics_text)
+    wait_gpu_free()
     try:
         r = sh("nice", "-n", "19", "python3", RENDER, lf, style, name, str(seed), str(seconds), str(bpm), outdir + "/", str(beats), timeout=RENDER_TIMEOUT)
     except subprocess.TimeoutExpired:
@@ -309,6 +334,10 @@ def render(lyrics_text, style, name, seed, seconds, bpm, outdir, beats=4):
         reset_audio_server()
         return [], "TIMEOUT"
     os.remove(lf)
+    if r.returncode == 3 and "TIMEOUT waiting" in r.stdout:  # render2.py gives up at 840 s, before the 900 s cap above can fire; same hung job, same reset (30 Oct: rave-6 sat 49 minutes with no TIMEOUT line)
+        print(time.strftime("%-I:%M %p"), "TIMEOUT render", name, "render2.py gave up waiting for the audio server", flush=True)
+        reset_audio_server()
+        return [], "TIMEOUT"
     files = [f"{outdir}/{name}.mp3", f"{outdir}/{name}b.mp3"]
     return [f for f in files if os.path.exists(f)], r.stdout[-200:] + r.stderr[-200:]
 
