@@ -10,7 +10,7 @@ if it has no mid-song dropout; it is sized to about -16.1 LUFS, tagged "music ma
 catalog. Votes steer which song is rendered next; the live stream's speed log makes the factory back off.
 Long rave jams are rendered in sections and joined with beat-aligned crossfades, then checked whole.
 """
-import glob, hashlib, json, math, os, random, re, subprocess, sys, time
+import glob, hashlib, json, math, os, random, re, shutil, subprocess, sys, time
 
 AUD = os.environ.get("BW_AUDIO", "/home/TurtleWolfe/repos/hub/internship/showcase/audio/band-wagon")
 STORY = os.environ.get("BW_STORY", "/home/TurtleWolfe/repos/hub/internship/showcase/band-wagon-story")
@@ -93,29 +93,19 @@ def _clock(stamp):
     return t.tm_hour * 3600 + t.tm_min * 60 + t.tm_sec
 
 
-def stream_speed(log_text, window=10):
-    """Real encoder speed over the last `window` readings, from ffmpeg's since-start figures.
+def stream_speed(log_text):
+    """Encoder speed for the factory's back-off: the newest 'over the last minute' figure of the current ffmpeg run.
 
-    The log's 'over the last minute' figure can repeat the since-start average, so it is never used. Media
-    seconds made by a reading = speed x seconds since the 'ffmpeg started' line; the real speed is the change in
-    media seconds over the change in wall-clock time. None until there are two readings and a start line.
+    The since-start average carries the slow start-up for a long time, so it is not used. A run with no last-minute
+    figure yet ('no last-minute figure yet', or no reading at all since 'ffmpeg started') returns 0.0, which the
+    callers treat as 'wait'. None only when the log has no 'ffmpeg started' line (no stream to protect).
     """
-    start = re.search(r"^(\d+:\d+:\d+ [AP]M) ffmpeg started", log_text, re.M)
-    if not start:
+    starts = [m.end() for m in re.finditer(r"^\d+:\d+:\d+ [AP]M ffmpeg started", log_text, re.M)]
+    if not starts:
         return None
-    t0, pts, day = _clock(start.group(1)), [], 0
-    prev = t0
-    for stamp, sp in re.findall(r"^(\d+:\d+:\d+ [AP]M) ffmpeg speed=([\d.]+)x since start", log_text, re.M):
-        t = _clock(stamp) + day
-        if t < prev:
-            day += 86400
-            t += 86400
-        prev = t
-        pts.append((t - t0, float(sp) * (t - t0)))
-    pts = pts[-window:]
-    if len(pts) < 2 or pts[-1][0] <= pts[0][0]:
-        return None
-    return (pts[-1][1] - pts[0][1]) / (pts[-1][0] - pts[0][0])
+    readings = re.findall(r"^\d+:\d+:\d+ [AP]M ffmpeg speed=[\d.]+x since start; (?:([\d.]+)x over the last minute|no last-minute figure yet)",
+                          log_text[starts[-1]:], re.M)
+    return float(readings[-1]) if readings and readings[-1] else 0.0
 
 
 MAX_RENDER_SECONDS = 270  # 240 s peaks at 7.5-7.7 GB on the 8 GB card; longer is not proven to fit
@@ -212,6 +202,28 @@ def seam_report(path, seam_times, win=3.0):
             bad.append((round(t, 1), round(lb - la, 1)))
     return bad
 
+def loudness_curve(path, start, dur):
+    """Momentary loudness (M, 400 ms) every 0.1 s from start for dur seconds: [(t, M)]. Used as evidence when a seam is refused."""
+    err = sh("ffmpeg", "-nostats", "-ss", str(max(0, start)), "-t", str(dur), "-i", path, "-af", "ebur128", "-f", "null", "-").stderr
+    out = []
+    for m in re.finditer(r"t:\s*([\d.]+)\s.*?M:\s*(-?[\d.]+|-inf)", err):
+        try:
+            out.append((round(max(0, start) + float(m.group(1)), 1), float(m.group(2))))
+        except ValueError:
+            pass
+    return out
+
+
+def keep_rejected(src, tid, outdir, work, song_id, n, bad_seams, gaps, secs):
+    """Never delete a take: move a refused one into <song>/_rejected/ with the loudness curve around each bad seam and its sections."""
+    rej = f"{outdir}/_rejected"; os.makedirs(rej, exist_ok=True)
+    dst = f"{rej}/{tid}.mp3"
+    shutil.move(src, dst)
+    curves = {str(t): loudness_curve(dst, t - 20, 60) for t, _ in bad_seams}
+    json.dump({"take": tid, "gaps": gaps, "bad_seams": bad_seams, "curves_M_dB": curves}, open(f"{rej}/{tid}.seams.json", "w"))
+    for f in glob.glob(f"{work}/{song_id}-t{n}-s*.mp3"):
+        shutil.move(f, f"{rej}/{os.path.basename(f)}")
+
 # ---------- registry, votes, catalog ----------
 
 def load_json(p, default):
@@ -297,6 +309,18 @@ RAVES = [("rave-1", "Pedal Beat Rave (A minor)", "A minor", 128), ("rave-2", "Br
          ("rave-3", "Music Box Rave (E minor)", "E minor", 140), ("rave-4", "Steam Rave (G minor)", "G minor", 136)]
 
 
+# Pedal-beat style, new songs (Jonathan, 30 Oct: the Band Wagon leans rave over jazz). Keys and tempos vary within 124 to 140 BPM;
+# a punchy drum kit and a synth lead carry the tune, with a breakdown and a drop.
+ARC2 = ["slow build, filtered kick, kit hats and a synth pluck, a bicycle wheel tick",
+        "first drop, full kit with a four-on-the-floor kick, rolling bass, bright synth lead",
+        "breakdown, synth lead alone over a soft pad with rising risers and a snare roll, then the kick returns",
+        "second drop, the biggest section, synth lead and brass over a steady pedal-beat pulse, bright arpeggios",
+        "long outro, the kit thins out, synth pluck and wheel tick, the pulse fades"]
+RAVES2 = [("rave-5", "Kit and Synth Rave (C minor)", "C minor", 124), ("rave-6", "Hollow Wheel Rave (F minor)", "F minor", 130),
+          ("rave-7", "Lantern Drop Rave (B minor)", "B minor", 138), ("rave-8", "Copper Pulse Rave (A minor)", "A minor", 126),
+          ("rave-9", "Chain Lightning Rave (E minor)", "E minor", 134), ("rave-10", "Wagon Wheel Drop (D minor)", "D minor", 140)]
+
+
 def rave_songs():
     out = []
     for sid, title, key, bpm in RAVES:
@@ -304,6 +328,11 @@ def rave_songs():
                  f"the band's brass and music box woven through, builds and drops, no vocals, clean and joyful")
         out.append({"id": sid, "title": title, "lyrics": "[Instrumental]", "style": style, "bpm": bpm, "seconds": 270, "kind": "rave",
                     "priority": 3.0, "key": key, "key_locked": True, "sections": 5, "arc": ARC})
+    for sid, title, key, bpm in RAVES2:
+        style = (f"long instrumental uplifting electronic dance, {key}, about {bpm} BPM, a punchy drum kit with a steady four-on-the-floor kick, "
+                 f"a bright synth lead, a bicycle wheel tick, the band's brass and music box as colour, a breakdown and a drop, no vocals, clean and joyful")
+        out.append({"id": sid, "title": title, "lyrics": "[Instrumental]", "style": style, "bpm": bpm, "seconds": 270, "kind": "rave",
+                    "priority": 3.0, "key": key, "key_locked": True, "sections": 5, "arc": ARC2})
     return out
 
 # ---------- rendering one take ----------
@@ -367,7 +396,7 @@ def make_takes(song, catalog):
         ok = not gaps and not bad_seams and (song["kind"] != "rave" or total >= 900)
         if not ok:
             print("rejected", tid, "gaps", gaps, "bad seams", bad_seams, "seconds", round(total, 1), flush=True)
-            os.remove(dst)
+            keep_rejected(dst, tid, outdir, work, song["id"], n, bad_seams, gaps, song["kind"])
             continue
         made.append({"song": song["id"], "take": tid, "take_n": n, "style": style, "seed": seed + k, "bpm": bpm, "key": key,
                      "seconds": round(total, 1), "path": dst, "lufs": LUFS_TARGET, "tag": TAG, "kind": song["kind"],
