@@ -35,12 +35,39 @@ BAD_PHRASES = [r"taps three times, and waits", r"ROOM FOR EVERY KID", r"FOLLOW T
                r"a girl at a window", r"couldn't speak.*watched|watched a girl", r"so the little one", r"come sit with me"]
 REVIEW_PHRASES = [r"\b(send|tell|post|told)\b"]
 
+# Kid screen (Jonathan, Fri 30 Oct 2026): the audience includes kids, so titles and lyrics are screened for words a kid could turn into a
+# dirty joke. content_problems lists a match as review; a song marked kid_safe must have none (make_takes refuses it); title_problems
+# screens cards, YouTube titles and posts.
+DOUBLE_MEANING = [r"\bbottom\b", r"\bbooty\b", r"\bballs?\b", r"\bwood\b", r"\bscrews?\b", r"\bpounding\b", r"\bshake the pipes\b",
+                  r"\bblows? (low|me|it)\b", r"\b(going to|here we|here I|ones who|I'm gonna|gonna) come\b", r"\bcomes? (in|on) (me|you)\b"]
+# Night Set songs re-worded for kids (Jonathan, 30 Oct about 7:55 AM): (old words, new words).
+KID_FIXES = [("shake the pipes!", "rattle the pipes!"), ("Brass blows low, here we come.", "Brass plays low, here we go."),
+             ("is going to come.", "is going to arrive."), ("to the ones who come.", "to the ones who join in."),
+             ("it's the chain or the screw,", "it's the chain or the bolt,"), ("it says here I come!", "it says here I am!"),
+             ("Crash, pounding]", "Crash, drumming]")]
+NIGHT_SET = [("n01", "Seven Ghosts in the Wiring"), ("n08", "Wrench in the Works"), ("n09", "Boiler Room Boogie")]
+JINGLE = os.environ.get("BW_JINGLE", os.path.join(os.path.dirname(STORY.rstrip("/")), "band-wagon-jingle.md"))
+
 # ---------- pure helpers (tested) ----------
 
 def content_problems(*texts):
     """(blocking, review): the BAD_PHRASES and REVIEW_PHRASES matches over the lyrics, style and title, before anything renders."""
     text = "\n".join(t for t in texts if t)
-    return ([p for p in BAD_PHRASES if re.search(p, text, re.I)], [p for p in REVIEW_PHRASES if re.search(p, text, re.I)])
+    return ([p for p in BAD_PHRASES if re.search(p, text, re.I)],
+            [p for p in REVIEW_PHRASES + DOUBLE_MEANING if re.search(p, text, re.I)])
+
+
+def title_problems(*titles):
+    """The DOUBLE_MEANING patterns a card, YouTube title or post text matches; empty means it passes the kid screen."""
+    text = "\n".join(t for t in titles if t)
+    return [p for p in DOUBLE_MEANING if re.search(p, text, re.I)]
+
+
+def kid_reword(text):
+    """text with every KID_FIXES pair that occurs in it applied; words the pairs miss are caught by the kid screen in make_takes."""
+    for old, new in KID_FIXES:
+        text = text.replace(old, new)
+    return text
 
 
 def variant(song, n):
@@ -242,9 +269,9 @@ def rave_plan(secs, bpm, arc, tol_db=3.0, tol_s=0.5):
         keep = section_trim(bpm, duration(secs[i]))
         start = t + keep - xf
         pre, post = lufs_window(secs[i], keep - xf - 10, 10), lufs_window(secs[i + 1], xf, 10)
-        if pre is not None and post is not None:
-            events.append({"kind": arc_kind(arc[min(i + 1, len(arc) - 1)]), "start": round(start, 2), "end": round(start + xf, 2),
-                           "planned_db": round(post - pre, 1)})
+        event = {"kind": arc_kind(arc[min(i + 1, len(arc) - 1)]), "start": round(start, 2), "end": round(start + xf, 2)}
+        event["planned_db"] = round(post - pre, 1) if pre is not None and post is not None else None
+        events.append(event)
         t = start
     return {"events": events, "stops": [], "tol_db": tol_db, "tol_s": tol_s}
 
@@ -256,6 +283,8 @@ def judge_gaps(gaps, plan):
 
 def judge_seam(event, pre, post, tol_db=3.0):
     """None when the joined take shows the planned step within tol_db; else (start, measured_db, planned_db, why)."""
+    if pre is None or post is None or event["planned_db"] is None:
+        return (event["start"], None, event["planned_db"], "seam not measurable")
     measured, planned = round(post - pre, 1), event["planned_db"]
     if abs(measured - planned) > tol_db:
         return (event["start"], measured, planned, "step differs from the plan")
@@ -269,8 +298,6 @@ def check_rave(path, plan):
     bad = []
     for ev in plan["events"]:
         pre, post = lufs_window(path, ev["start"] - 10, 10), lufs_window(path, ev["end"], 10)
-        if pre is None or post is None:
-            continue
         f = judge_seam(ev, pre, post, plan["tol_db"])
         if f:
             bad.append(f)
@@ -282,7 +309,7 @@ def keep_rejected(src, tid, outdir, work, song_id, n, bad_seams, gaps, secs):
     rej = f"{outdir}/_rejected"; os.makedirs(rej, exist_ok=True)
     dst = f"{rej}/{tid}.mp3"
     shutil.move(src, dst)
-    curves = {str(t): loudness_curve(dst, t - 20, 60) for t, _ in bad_seams}
+    curves = {str(t): loudness_curve(dst, t - 20, 60) for t, *_ in bad_seams}
     json.dump({"take": tid, "gaps": gaps, "bad_seams": bad_seams, "curves_M_dB": curves}, open(f"{rej}/{tid}.seams.json", "w"))
     for f in glob.glob(f"{work}/{song_id}-t{n}-s*.mp3"):
         shutil.move(f, f"{rej}/{os.path.basename(f)}")
@@ -326,6 +353,20 @@ def stream_busy():
     return stream_speed(open(logs[-1]).read())
 
 
+def night_songs(path=None):
+    """The three Night Set songs re-worded for kids, as kid_safe song entries (ids night-n01, night-n08, night-n09)."""
+    t = open(path or JINGLE).read()
+    out = []
+    for nid, title in NIGHT_SET:
+        part = re.split(rf"(?:^|\n)### {nid}: ", t)[1].split("\n### ")[0]
+        m = re.search(r"```\n(.*?)```", part, re.S)
+        s = re.search(r'\nStyle: "(.*?)"', part)
+        bpm = int(re.search(r"\((\d+) BPM", part)[1])
+        out.append({"id": f"night-{nid}", "title": title, "lyrics": kid_reword(m.group(1)), "style": s.group(1), "bpm": bpm,
+                    "seconds": render_seconds(150), "kind": "kid", "priority": 3.0, "kid_safe": True})
+    return out
+
+
 def build_registry():
     songs = []
     def sections(path, head):
@@ -358,7 +399,7 @@ def build_registry():
             add(f"{kind}-{letter.lower()}", title.split(":", 1)[1].split("(")[0].strip(), lyr, style, bpm, render_seconds(secs), kind, 3.0)
             if "3/4" in title or "in three" in title:
                 songs[-1]["beats"] = 3
-    songs += rave_songs()
+    songs += night_songs() + rave_songs()
     save_json(SONGS, songs)
     return songs
 
@@ -430,6 +471,11 @@ def make_takes(song, catalog):
     if blocking:
         print("content gate: not rendering", song["id"], "matches", blocking, flush=True)
         return []
+    if song.get("kid_safe"):
+        kid = title_problems(song.get("lyrics"), song.get("title"))
+        if kid:
+            print("kid screen: not rendering", song["id"], "matches", kid, flush=True)
+            return []
     n = next_index(catalog, song["id"])
     style, bpm, seed, key = variant(song, n)
     outdir = f"{TAKES}/{song['id']}"; os.makedirs(outdir, exist_ok=True)

@@ -17,3 +17,6 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm test
+      - name: Take factory unit tests
+        working-directory: tools/factory
+        run: python3 -m unittest test_take_factory
