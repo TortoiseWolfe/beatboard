@@ -61,7 +61,9 @@ KID_FIXES = [("shake the pipes!", "rattle the pipes!"), ("Brass blows low, here 
              ("Put it in the beat and take it home.", "Play it in the beat and take it home."),
              # 30 Oct, Jonathan's own wording for the n04 chorus (both times) and the verse 2 line
              ("Twist it, turn it, tick and tock,\nWe both wind it, we both rock!", "Spin it, wind it, tick and tock,\nWe both turn the key and rock!"),
-             ("Crank it till it rattles and the spring goes what the heck!", "Spin it till it rattles and the spring goes what the heck!")]
+             ("Crank it till it rattles and the spring goes what the heck!", "Spin it till it rattles and the spring goes what the heck!"),
+             # 30 Oct, Jonathan's own wording for the n05 line
+             ("If there's a ghost around the corner, I'll toot it out of fright!", "If there's a ghost around the corner, I'll play it out of fright!")]
 # Sung songs re-worded for kids (Jonathan, Fri 30 Oct about 8:18 AM: fix the 27 rows of double-meanings.md that are not marked low).
 # Applied to the title, ribbon, lyrics and style of every song that carries the words, so the ns-* and saas-* copies follow their parent.
 KID_SONG_FIXES = [
@@ -113,7 +115,7 @@ KID_REDO = ["story-8", "story-9", "story-12", "story-11", "story-13", "bike-a", 
             "ns-story-12-polka", "ns-story-8-monsterlite"]
 NIGHT_SET = [("n01", "Seven Ghosts in the Wiring"), ("n08", "Wrench in the Works"), ("n09", "Boiler Room Boogie")]
 # Kit songs whose held take is replaced under the same id (n02 Lantern Parade: its chorus carried the "here we come" joke; n04 Who Winds the Music Box?: Jonathan's new chorus and verse 2 line).
-KIT_REDO = [("n02", "Lantern Parade"), ("n04", "Who Winds the Music Box?")]
+KIT_REDO = [("n02", "Lantern Parade"), ("n04", "Who Winds the Music Box?"), ("n05", "The Night Watch")]
 JINGLE = os.environ.get("BW_JINGLE", os.path.join(os.path.dirname(STORY.rstrip("/")), "band-wagon-jingle.md"))
 
 # ---------- pure helpers (tested) ----------

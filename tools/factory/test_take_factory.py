@@ -353,17 +353,19 @@ class KitRepeatTests(unittest.TestCase):
 
     def test_n02_keeps_its_id_and_is_kid_safe(self):
         jingle = os.path.join(os.path.dirname(__file__), "jingle-fixture.md")
-        text = "### n02: Lantern Parade (120 BPM, 150 s)\n\n```\n[Chorus]\nLight the glow, beat the drum,\nThe Band Wagon's rolling, here we come!\n```\n\nStyle: \"dark march\"\n\n### n04: Who Winds the Music Box? (90 BPM, 150 s)\n\n```\n[Verse 2]\nCrank it till it rattles and the spring goes what the heck!\n```\n\nStyle: \"music box\"\n"
+        text = "### n02: Lantern Parade (120 BPM, 150 s)\n\n```\n[Chorus]\nLight the glow, beat the drum,\nThe Band Wagon's rolling, here we come!\n```\n\nStyle: \"dark march\"\n\n### n04: Who Winds the Music Box? (90 BPM, 150 s)\n\n```\n[Verse 2]\nCrank it till it rattles and the spring goes what the heck!\n```\n\nStyle: \"music box\"\n\n### n05: The Night Watch (92 BPM, 150 s)\n\n```\n[Verse 2]\nIf there's a ghost around the corner, I'll toot it out of fright!\n```\n\nStyle: \"watch\"\n"
         with open(jingle, "w") as f:
             f.write(text)
         try:
             out = tf.kit_redo_songs(jingle)
         finally:
             os.remove(jingle)
-        self.assertEqual([s["id"] for s in out], ["n02", "n04"])
+        self.assertEqual([s["id"] for s in out], ["n02", "n04", "n05"])
         self.assertIn("hear the drum!", out[0]["lyrics"])
         self.assertIn("Spin it till it rattles", out[1]["lyrics"])
         self.assertNotIn("Crank", out[1]["lyrics"])
+        self.assertIn("I'll play it out of fright!", out[2]["lyrics"])
+        self.assertNotIn("toot", out[2]["lyrics"])
         self.assertEqual(tf.title_problems(out[0]["lyrics"], out[0]["title"]), [])
 
 
