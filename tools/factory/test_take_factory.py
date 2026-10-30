@@ -86,6 +86,45 @@ class StreamTests(unittest.TestCase):
         self.assertIsNone(tf.stream_speed(self.line("11:00:34 PM", 1.0, 1.0)))
 
 
+class RavePlanTests(unittest.TestCase):
+    PLAN = {"events": [{"kind": "drop", "start": 747.3, "end": 761.8, "planned_db": 14.0}], "stops": [], "tol_db": 3.0, "tol_s": 0.5}
+
+    def test_planned_drop_passes(self):
+        # breakdown at -30, drop at -16: the plan says +14 and the take shows +13.4
+        self.assertIsNone(tf.judge_seam(self.PLAN["events"][0], -30.0, -16.6))
+
+    def test_drop_that_misses_its_depth_fails(self):
+        self.assertIsNotNone(tf.judge_seam(self.PLAN["events"][0], -30.0, -24.0))
+
+    def test_drop_that_goes_the_wrong_way_fails(self):
+        ev = {"kind": "drop", "start": 247.6, "end": 262.6, "planned_db": -15.0}
+        self.assertEqual(tf.judge_seam(ev, -16.0, -31.0)[3], "a drop that goes the wrong way")
+
+    def test_unplanned_gap_fails(self):
+        self.assertEqual(tf.judge_gaps([(283.8, 0.4)], self.PLAN), [(283.8, 0.4)])
+
+    def test_planned_stop_on_time_passes(self):
+        plan = dict(self.PLAN, stops=[{"time": 740.0, "max_len": 0.6}])
+        self.assertEqual(tf.judge_gaps([(740.3, 0.5)], plan), [])
+
+    def test_planned_stop_at_the_wrong_time_fails(self):
+        plan = dict(self.PLAN, stops=[{"time": 740.0, "max_len": 0.6}])
+        self.assertEqual(tf.judge_gaps([(741.2, 0.5)], plan), [(741.2, 0.5)])
+
+    def test_planned_stop_that_runs_long_fails(self):
+        plan = dict(self.PLAN, stops=[{"time": 740.0, "max_len": 0.6}])
+        self.assertEqual(tf.judge_gaps([(740.0, 1.4)], plan), [(740.0, 1.4)])
+
+    def test_arc_kinds(self):
+        self.assertEqual([tf.arc_kind(a) for a in tf.ARC], ["build", "drop", "dip", "drop", "dip"])
+        self.assertEqual([tf.arc_kind(a) for a in tf.ARC2], ["build", "drop", "dip", "drop", "dip"])
+
+    def test_gentle_take_like_rave_1_t0_passes(self):
+        # rave-1-t0's four seams step by less than 3 dB (10 s before against 3 s after, measured 30 Oct); each matches a plan of the same size
+        for start, d in ((247.5, -0.4), (495.0, 0.6), (742.5, -0.8), (990.0, -0.5)):
+            self.assertIsNone(tf.judge_seam({"kind": "dip", "start": start, "end": start + 15, "planned_db": d}, -15.0, -15.0 + d))
+
+
 class TimingTests(unittest.TestCase):
     def test_trim_is_whole_bars(self):
         bar = 4 * 60.0 / 128
