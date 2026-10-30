@@ -96,6 +96,11 @@ class RaveGrungeTests(unittest.TestCase):
             self.assertIn("distorted bass", s["style"])
             self.assertIn("mud", s["style"])
             self.assertNotIn("clean and joyful", s["style"])
+            self.assertNotIn("lo-fi", s["style"])
+            self.assertTrue(all(w in s["style"] for w in ("dirty", "raw and rough", "growling distorted bass", "crunchy overdriven guitar",
+                                                         "fast chopped breakbeats", "wild child rave")))
+            self.assertFalse(any("drone" in a or "fades" in a for a in s["arc"]))
+            self.assertIn("breakbeat keeps rolling", s["arc"][2])
             self.assertEqual(tf.content_problems(s["lyrics"], s["style"], s["title"], None)[0], [])
             self.assertEqual([tf.arc_kind(a) for a in s["arc"]], ["build", "drop", "dip", "drop", "dip"])
 
