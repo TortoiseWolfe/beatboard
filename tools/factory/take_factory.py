@@ -53,7 +53,9 @@ KID_FIXES = [("shake the pipes!", "rattle the pipes!"), ("Brass blows low, here 
              # 30 Oct about 11:45 AM, Jonathan: the same "here we come" joke in three more songs (double-meanings.md, kit section; the screen's wording)
              ("Brass is on the horn, here we come!", "Brass is on the trumpet, hear it hum!"),
              ("The Band Wagon's rolling, here we come!", "The Band Wagon's rolling, hear the drum!"),
-             ("One, two, three, four, boom, here we come!", "One, two, three, four, boom, hear us drum!")]
+             ("One, two, three, four, boom, here we come!", "One, two, three, four, boom, hear us drum!"),
+             # 30 Oct, Jonathan's own wording for the n09 bridge
+             ("Down low, down low, down low...", "Down we go, down we go, down we go..."), ("Up high, up high, hey!", "Up we go, up we go, hey!")]
 # Sung songs re-worded for kids (Jonathan, Fri 30 Oct about 8:18 AM: fix the 27 rows of double-meanings.md that are not marked low).
 # Applied to the title, ribbon, lyrics and style of every song that carries the words, so the ns-* and saas-* copies follow their parent.
 KID_SONG_FIXES = [
