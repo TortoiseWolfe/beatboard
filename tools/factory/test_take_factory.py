@@ -383,14 +383,15 @@ class RenderTimeoutTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             hang = os.path.join(d, "hang.py")
             open(hang, "w").write("import time\ntime.sleep(60)\n")
-            old = (tf.RENDER, tf.RENDER_TIMEOUT, tf.reset_audio_server)
+            old = (tf.RENDER, tf.RENDER_TIMEOUT, tf.reset_audio_server, tf.wait_gpu_free)
             tf.RENDER, tf.RENDER_TIMEOUT = hang, 1
             resets = []
             tf.reset_audio_server = lambda: resets.append(1)
+            tf.wait_gpu_free = lambda: True  # the real one reads the card and, on a busy box, waits
             try:
                 files, note = tf.render("[Instrumental]", "style", "t", 1, 10, 100, d)
             finally:
-                tf.RENDER, tf.RENDER_TIMEOUT, tf.reset_audio_server = old
+                tf.RENDER, tf.RENDER_TIMEOUT, tf.reset_audio_server, tf.wait_gpu_free = old
             self.assertEqual(resets, [1])
             self.assertEqual((files, note), ([], "TIMEOUT"))
             self.assertFalse(os.path.exists(os.path.join(d, "t.lyrics.txt")))
@@ -450,6 +451,16 @@ class ResetAudioServerTests(unittest.TestCase):
         class R:
             stdout = ""
         self.assertFalse(tf.reset_audio_server(run=lambda *a, **k: R(), sleep=lambda s: None))
+
+
+class RaveOutroPadTests(unittest.TestCase):
+    def test_outro_never_asks_for_silence_and_still_plans_a_dip(self):
+        outro = tf.ARC[4]
+        self.assertIn("soft pad", outro)
+        self.assertIn("low bass hum", outro)
+        self.assertIn("final big hit", outro)
+        self.assertEqual(tf.arc_kind(outro), "dip")
+        self.assertEqual(len(tf.ARC), 5)
 
 
 class BikeASilenceTests(unittest.TestCase):
