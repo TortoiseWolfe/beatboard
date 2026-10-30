@@ -63,7 +63,12 @@ KID_FIXES = [("shake the pipes!", "rattle the pipes!"), ("Brass blows low, here 
              ("Twist it, turn it, tick and tock,\nWe both wind it, we both rock!", "Spin it, wind it, tick and tock,\nWe both turn the key and rock!"),
              ("Crank it till it rattles and the spring goes what the heck!", "Spin it till it rattles and the spring goes what the heck!"),
              # 30 Oct, Jonathan's own wording for the n05 line
-             ("If there's a ghost around the corner, I'll toot it out of fright!", "If there's a ghost around the corner, I'll play it out of fright!")]
+             ("If there's a ghost around the corner, I'll toot it out of fright!", "If there's a ghost around the corner, I'll play it out of fright!"),
+             # 30 Oct, Jonathan's own wording for the n07 lines
+             ("Every pipe is humming and the pistons keep time,", "Every gear is humming and the wheels keep time,"),
+             ("Where the steam goes up, the groove comes down,\nSeven little robots coming into town.", "Where the steam goes up, the groove rolls down,\nSeven little robots rolling into town."),
+             # 30 Oct, Jonathan's own wording for the n11 line
+             ("It only comes out when the night is still,", "It only slips out when the night is still,")]
 # Sung songs re-worded for kids (Jonathan, Fri 30 Oct about 8:18 AM: fix the 27 rows of double-meanings.md that are not marked low).
 # Applied to the title, ribbon, lyrics and style of every song that carries the words, so the ns-* and saas-* copies follow their parent.
 KID_SONG_FIXES = [
@@ -115,7 +120,7 @@ KID_REDO = ["story-8", "story-9", "story-12", "story-11", "story-13", "bike-a", 
             "ns-story-12-polka", "ns-story-8-monsterlite"]
 NIGHT_SET = [("n01", "Seven Ghosts in the Wiring"), ("n08", "Wrench in the Works"), ("n09", "Boiler Room Boogie")]
 # Kit songs whose held take is replaced under the same id (n02 Lantern Parade: its chorus carried the "here we come" joke; n04 Who Winds the Music Box?: Jonathan's new chorus and verse 2 line).
-KIT_REDO = [("n02", "Lantern Parade"), ("n04", "Who Winds the Music Box?"), ("n05", "The Night Watch")]
+KIT_REDO = [("n02", "Lantern Parade"), ("n04", "Who Winds the Music Box?"), ("n05", "The Night Watch"), ("n07", "Steam Hiss Shuffle"), ("n11", "Ghost in the Music Box")]
 JINGLE = os.environ.get("BW_JINGLE", os.path.join(os.path.dirname(STORY.rstrip("/")), "band-wagon-jingle.md"))
 
 # ---------- pure helpers (tested) ----------
