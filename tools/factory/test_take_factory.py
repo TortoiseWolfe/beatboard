@@ -1,4 +1,5 @@
 import os
+import re
 import unittest
 import take_factory as tf
 
@@ -326,6 +327,54 @@ class KidFixAllTests(unittest.TestCase):
     def test_pairs_do_not_loop(self):
         for old, new in tf.KID_SONG_FIXES:
             self.assertNotIn(old, new)
+
+
+class KitRepeatTests(unittest.TestCase):
+    """Jonathan, 30 Oct about 11:45 AM: the 'here we come' joke is fixed in n02, n06 and the v1 theme too."""
+    def test_three_more_lines_are_reworded(self):
+        for old, new in [("Brass is on the horn, here we come!", "Brass is on the trumpet, hear it hum!"),
+                         ("The Band Wagon's rolling, here we come!", "The Band Wagon's rolling, hear the drum!"),
+                         ("One, two, three, four, boom, here we come!", "One, two, three, four, boom, hear us drum!")]:
+            self.assertEqual(tf.kid_reword("a\n" + old + "\nb"), "a\n" + new + "\nb")
+            self.assertTrue(any(re.search(p, old, re.I) for p in tf.DOUBLE_MEANING))
+            self.assertFalse(any(re.search(p, new, re.I) for p in tf.DOUBLE_MEANING))
+
+    def test_n09_bridge_uses_jonathans_words(self):
+        out = tf.kid_reword("[Bridge]\nDown low, down low, down low...\nUp high, up high, hey!\n")
+        self.assertEqual(out, "[Bridge]\nDown we go, down we go, down we go...\nUp we go, up we go, hey!\n")
+
+    def test_n08_lines_use_jonathans_words(self):
+        out = tf.kid_reword("Tighten it, tap it, and give it a turn!\nPut it in the beat and take it home.\nTighten it, tap it, and give it a turn!")
+        self.assertEqual(out, "Fix it, tap it, and see what you learn!\nPlay it in the beat and take it home.\nFix it, tap it, and see what you learn!")
+
+    def test_n04_chorus_uses_jonathans_words(self):
+        c = "Twist it, turn it, tick and tock,\nWe both wind it, we both rock!\n"
+        self.assertEqual(tf.kid_reword(c + "x\n" + c), "Spin it, wind it, tick and tock,\nWe both turn the key and rock!\nx\nSpin it, wind it, tick and tock,\nWe both turn the key and rock!\n")
+
+    def test_n02_keeps_its_id_and_is_kid_safe(self):
+        jingle = os.path.join(os.path.dirname(__file__), "jingle-fixture.md")
+        text = "# The Band Wagon theme song\n\n## Full version (about 55 seconds)\n\n```\n[Verse 1]\nBrass is on the horn, here we come!\n```\n\n## Hook (under 15 seconds)\n\n```\nx\n```\n\n## Style lines used\n\n- S1 (takes 1 and 2): \"bouncy parade, about 118 BPM\"\n\n### n02: Lantern Parade (120 BPM, 150 s)\n\n```\n[Chorus]\nLight the glow, beat the drum,\nThe Band Wagon's rolling, here we come!\n```\n\nStyle: \"dark march\"\n\n### n04: Who Winds the Music Box? (90 BPM, 150 s)\n\n```\n[Verse 2]\nCrank it till it rattles and the spring goes what the heck!\n```\n\nStyle: \"music box\"\n\n### n05: The Night Watch (92 BPM, 150 s)\n\n```\n[Verse 2]\nIf there's a ghost around the corner, I'll toot it out of fright!\n```\n\nStyle: \"watch\"\n\n### n07: Steam Hiss Shuffle (124 BPM, 150 s)\n\n```\n[Verse 1]\nEvery pipe is humming and the pistons keep time,\n[Chorus]\nWhere the steam goes up, the groove comes down,\nSeven little robots coming into town.\nWhere the steam goes up, the groove comes down,\nSeven little robots coming into town.\n```\n\nStyle: \"steam\"\n\n### n11: Ghost in the Music Box (80 BPM, 150 s)\n\n```\n[Verse 1]\nIt only comes out when the night is still,\n```\n\nStyle: \"ghost\"\n\n### n06: Count Me In (94 BPM, 150 s)\n\n```\n[Verse 1]\nOne, two, three, four, boom, here we come!\n```\n\nStyle: \"count\"\n\n### n12: Signal Lost, Signal Found (76 BPM, 150 s)\n\n```\n[Chorus]\nLittle notes are coming round.\nEvery song comes back in time.\n[Verse 2]\nOut of the hiss comes a single clean tone,\n```\n\nStyle: \"radio\"\n"
+        with open(jingle, "w") as f:
+            f.write(text)
+        try:
+            out = tf.kit_redo_songs(jingle)
+        finally:
+            os.remove(jingle)
+        self.assertEqual([s["id"] for s in out], ["n02", "n04", "n05", "n07", "n11", "n06", "n12", "v1-theme"])
+        self.assertIn("hear the drum!", out[0]["lyrics"])
+        self.assertIn("Spin it till it rattles", out[1]["lyrics"])
+        self.assertNotIn("Crank", out[1]["lyrics"])
+        self.assertIn("I'll play it out of fright!", out[2]["lyrics"])
+        self.assertNotIn("toot", out[2]["lyrics"])
+        self.assertIn("Every gear is humming and the wheels keep time,", out[3]["lyrics"])
+        self.assertEqual(out[3]["lyrics"].count("the groove rolls down,\nSeven little robots rolling into town."), 2)
+        self.assertNotIn("pistons", out[3]["lyrics"])
+        self.assertIn("It only slips out when the night is still,", out[4]["lyrics"])
+        self.assertIn("boom, hear us drum!", out[5]["lyrics"])
+        self.assertEqual(out[6]["lyrics"], "[Chorus]\nLittle notes are floating round.\nEvery song returns in time.\n[Verse 2]\nOut of the hiss rings a single clean tone,\n")
+        self.assertIn("Brass is on the trumpet, hear it hum!", out[7]["lyrics"])
+        self.assertEqual((out[7]["id"], out[7]["bpm"], out[7]["style"]), ("v1-theme", 118, "bouncy parade, about 118 BPM"))
+        self.assertEqual(tf.title_problems(out[0]["lyrics"], out[0]["title"]), [])
 
 
 if __name__ == "__main__":
