@@ -343,6 +343,10 @@ class KitRepeatTests(unittest.TestCase):
         out = tf.kid_reword("[Bridge]\nDown low, down low, down low...\nUp high, up high, hey!\n")
         self.assertEqual(out, "[Bridge]\nDown we go, down we go, down we go...\nUp we go, up we go, hey!\n")
 
+    def test_n08_lines_use_jonathans_words(self):
+        out = tf.kid_reword("Tighten it, tap it, and give it a turn!\nPut it in the beat and take it home.\nTighten it, tap it, and give it a turn!")
+        self.assertEqual(out, "Fix it, tap it, and see what you learn!\nPlay it in the beat and take it home.\nFix it, tap it, and see what you learn!")
+
     def test_n02_keeps_its_id_and_is_kid_safe(self):
         jingle = os.path.join(os.path.dirname(__file__), "jingle-fixture.md")
         text = "### n02: Lantern Parade (120 BPM, 150 s)\n\n```\n[Chorus]\nLight the glow, beat the drum,\nThe Band Wagon's rolling, here we come!\n```\n\nStyle: \"dark march\"\n"
