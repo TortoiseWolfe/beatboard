@@ -377,6 +377,22 @@ class KitRepeatTests(unittest.TestCase):
         self.assertEqual(tf.title_problems(out[0]["lyrics"], out[0]["title"]), [])
 
 
+class RenderTimeoutTests(unittest.TestCase):
+    def test_hung_render_is_killed_and_reported(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            hang = os.path.join(d, "hang.py")
+            open(hang, "w").write("import time\ntime.sleep(60)\n")
+            old = (tf.RENDER, tf.RENDER_TIMEOUT)
+            tf.RENDER, tf.RENDER_TIMEOUT = hang, 1
+            try:
+                files, note = tf.render("[Instrumental]", "style", "t", 1, 10, 100, d)
+            finally:
+                tf.RENDER, tf.RENDER_TIMEOUT = old
+            self.assertEqual((files, note), ([], "TIMEOUT"))
+            self.assertFalse(os.path.exists(os.path.join(d, "t.lyrics.txt")))
+
+
 if __name__ == "__main__":
     unittest.main()
 

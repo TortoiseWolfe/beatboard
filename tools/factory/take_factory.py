@@ -276,10 +276,18 @@ def size_and_tag(src, dst, title):
     return round(LUFS_TARGET, 1)
 
 
+RENDER_TIMEOUT = 900  # seconds; one render2.py call normally takes 1 to 5 minutes. 30 Oct: one hung for 3.5 hours and stalled the loop
+
+
 def render(lyrics_text, style, name, seed, seconds, bpm, outdir, beats=4):
     lf = f"{outdir}/{name}.lyrics.txt"
     open(lf, "w").write(lyrics_text)
-    r = sh("nice", "-n", "19", "python3", RENDER, lf, style, name, str(seed), str(seconds), str(bpm), outdir + "/", str(beats))
+    try:
+        r = sh("nice", "-n", "19", "python3", RENDER, lf, style, name, str(seed), str(seconds), str(bpm), outdir + "/", str(beats), timeout=RENDER_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        print(time.strftime("%-I:%M %p"), "TIMEOUT render", name, f"killed after {RENDER_TIMEOUT} s", flush=True)
+        os.remove(lf)
+        return [], "TIMEOUT"
     os.remove(lf)
     files = [f"{outdir}/{name}.mp3", f"{outdir}/{name}b.mp3"]
     return [f for f in files if os.path.exists(f)], r.stdout[-200:] + r.stderr[-200:]
