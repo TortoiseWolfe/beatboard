@@ -479,9 +479,9 @@ def build_registry():
 # play outside in the mud on their bikes with some drum and bass wild child rave"). Every rave take from now on uses this style; kid-safe, no vocals.
 ARC = ["slow build, a dirty filtered breakbeat, scratchy guitar feedback and a bicycle wheel tick in the mud",
        "first drop, fast chopped breakbeats on a live drum kit, a growling distorted bass, crunchy overdriven guitar riffs",
-       "breakdown, raw guitar and a snare roll over a gritty bass drone, a bicycle bell, then the breakbeat crashes back in",
+       "breakdown, the breakbeat keeps rolling under a growling bass with raw guitar stabs and a snare roll, a bicycle bell, then the full drop crashes back in",
        "second drop, the biggest section, wild breakbeats, distorted bass wobbles and loud garage guitar, kids shouting along off-mic",
-       "long outro, the drums loosen to a muddy shuffle, guitar feedback and wheel tick, the noise fades"]
+       "long outro, the drums loosen to a muddy shuffle, guitar feedback and wheel tick, ending on one final big hit"]
 RAVES = [("rave-1", "Pedal Beat Rave (A minor)", "A minor", 170), ("rave-2", "Brass Wheel Rave (D minor)", "D minor", 172),
          ("rave-3", "Music Box Rave (E minor)", "E minor", 174), ("rave-4", "Steam Rave (G minor)", "G minor", 168)]
 RAVES2 = [("rave-5", "Kit and Synth Rave (C minor)", "C minor", 170), ("rave-6", "Hollow Wheel Rave (F minor)", "F minor", 172),
@@ -495,7 +495,7 @@ RAVE_MIXES = ["with a crunchier guitar", "with a heavier distorted bass", "with 
 def rave_style(key, bpm):
     return (f"long instrumental gritty drum and bass rave, {key}, about {bpm} BPM, fast chopped breakbeats on a live drum kit, a growling distorted bass, "
             f"crunchy overdriven guitar from a kids' garage rock band, raw and rough, outdoor mud-and-bikes energy, a bicycle bell and wheel tick buried "
-            f"in the mix, a breakdown and a drop, wild child rave, no vocals, lo-fi and dirty")
+            f"in the mix, a breakdown and a drop, wild child rave, no vocals, dirty")
 
 
 def rave_songs():
