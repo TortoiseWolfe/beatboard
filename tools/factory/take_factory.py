@@ -660,6 +660,31 @@ def stream_busy():
     return stream_speed(open(logs[-1]).read())
 
 
+# n11 and n12 kept refusing (dropouts in the thin, quiet parts), so their arrangement is thickened (hub, 31 Oct 7:25 AM, proposal part a): a soft pad and a low
+# bass hum under the intro, bridge and outro, a quiet pulse under the soft verses, one added style phrase. Section tags only: no lyric word, voice or idea changes.
+PAD = "over a soft pad and low bass hum"
+ARRANGEMENT = {
+    "n11": [("[Intro - music box, glitching]", f"[Intro - music box, glitching, {PAD}]"),
+            ("[Verse 1 - soft, close]", "[Verse 1 - soft, close, over a soft pad and a quiet steady heartbeat kick]"),
+            ("[Verse 2 - soft]", "[Verse 2 - soft, over a soft pad and a quiet steady heartbeat kick]"),
+            ("[Bridge - music box alone]", f"[Bridge - music box {PAD}]"),
+            ("[Outro - fading]", f"[Outro - fading, {PAD}]")],
+    "n12": [("[Intro - glockenspiel, static]", f"[Intro - glockenspiel, static, {PAD}]"),
+            ("[Verse 1 - soft, close]", "[Verse 1 - soft, close, over a soft pad and a quiet steady heartbeat kick]"),
+            ("[Verse 2 - soft]", "[Verse 2 - soft, over a soft pad and a quiet steady heartbeat kick]"),
+            ("[Bridge - glockenspiel alone]", f"[Bridge - glockenspiel {PAD}]"),
+            ("[Outro - fading]", f"[Outro - fading, {PAD}]")],
+}
+ARRANGEMENT_STYLE = ", soft pad and low bass hum always underneath, steady quiet pulse, never silent"
+
+
+def arrange(nid, lyrics, style):
+    """(lyrics, style) with the ARRANGEMENT tag changes and style phrase for nid; other songs come back unchanged."""
+    for old, new in ARRANGEMENT.get(nid, []):
+        lyrics = lyrics.replace(old, new)
+    return lyrics, (style + ARRANGEMENT_STYLE if nid in ARRANGEMENT else style)
+
+
 def night_songs(path=None, songs=None, prefix="night-"):
     """The three Night Set songs re-worded for kids, as kid_safe song entries (ids night-n01, night-n08, night-n09)."""
     t = open(path or JINGLE).read()
@@ -672,7 +697,8 @@ def night_songs(path=None, songs=None, prefix="night-"):
         m = re.search(r"```\n(.*?)```", part, re.S)
         s = re.search(r'\nStyle: "(.*?)"', part)
         bpm = int(re.search(r"\((\d+) BPM", part)[1])
-        out.append({"id": f"{prefix}{nid}", "title": title, "lyrics": kid_reword(m.group(1)), "style": s.group(1), "bpm": bpm,
+        lyrics, style = arrange(nid, kid_reword(m.group(1)), s.group(1))
+        out.append({"id": f"{prefix}{nid}", "title": title, "lyrics": lyrics, "style": style, "bpm": bpm,
                     "seconds": render_seconds(150), "kind": "kid", "priority": 3.0, "kid_safe": True})
     return out
 

@@ -606,6 +606,31 @@ class KidScreenTests(unittest.TestCase):
     def test_words_the_fixes_miss_are_still_caught(self):
         self.assertTrue(tf.title_problems(tf.kid_reword("the wood and the bottom")))
 
+    def test_arrange_changes_only_tags_and_style_for_n11_and_n12(self):
+        import re
+        for nid in ("n11", "n12"):
+            old = "[Intro - x]\nmm\n\n[Verse 1 - soft, close]\nline\n\n[Verse 2 - soft]\nline2\n\n[Outro - fading]\nAh\n"
+            old = old.replace("[Intro - x]", tf.ARRANGEMENT[nid][0][0])
+            lyr, style = tf.arrange(nid, old, "ballad")
+            self.assertIn("soft pad and low bass hum", lyr)
+            self.assertIn("quiet steady heartbeat kick", lyr)
+            self.assertTrue(style.startswith("ballad, soft pad"))
+            strip = lambda t: [l for l in t.splitlines() if not l.startswith("[")]
+            self.assertEqual(strip(lyr), strip(old))
+        lyr, style = tf.arrange("n06", "[Verse 1 - soft, close]\nline\n", "funk")
+        self.assertEqual((lyr, style), ("[Verse 1 - soft, close]\nline\n", "funk"))
+
+    def test_n11_n12_tags_exist_in_the_hub_page(self):
+        import os
+        if not os.path.exists(tf.JINGLE):
+            self.skipTest("hub page not on this machine")
+        page = open(tf.JINGLE).read()
+        for nid, title in tf.KIT_REDO:
+            if nid in tf.ARRANGEMENT:
+                part = page.split(f"### {nid}: ")[1].split("\n### ")[0]
+                for old, _ in tf.ARRANGEMENT[nid]:
+                    self.assertIn(old, part)
+
     def test_night_songs_from_the_jingle_page(self):
         import tempfile
         page = "\n".join(f"### {n}: {t} ({b} BPM, 150 s)\n\nx\n\n```\n[Verse]\nline\n```\n\nStyle: \"funk, about {b} BPM\"\n"
