@@ -10,9 +10,10 @@ class VariantTests(unittest.TestCase):
     def test_deterministic(self):
         self.assertEqual(tf.variant(SONG, 4), tf.variant(SONG, 4))
 
-    def test_take_zero_is_the_original(self):
+    def test_take_zero_is_the_original_in_the_bands_sound(self):
         style, bpm, seed, key = tf.variant(SONG, 0)
-        self.assertEqual((style, bpm, key), (SONG["style"], 120, "A minor"))
+        d = tf.sound_direction()
+        self.assertEqual((style, bpm, key), (tf.direction_scrub(SONG["style"], d) + ", " + d["always"], 120, "A minor"))
 
     def test_later_takes_change_a_little(self):
         seeds = {tf.variant(SONG, n)[2] for n in range(1, 30)}
@@ -619,3 +620,35 @@ class KidScreenTests(unittest.TestCase):
         for s in songs:
             self.assertTrue(s["kid_safe"])
             self.assertEqual(tf.title_problems(s["lyrics"], s["title"]), [])
+
+
+class SoundDirectionTests(unittest.TestCase):
+    """Jonathan 1 Nov 2026: the takes sounded bright, fresh and friendly like a marching band; the direction file now reaches every take."""
+
+    def test_mood_and_mix_pools_hold_no_bright_words(self):
+        d = tf.sound_direction()
+        for w in d["moods"] + d["mixes"] + [d["always"]]:
+            self.assertEqual(tf.direction_problems(w, d), [], w)
+
+    def test_scrub_turns_march_and_bright_words_dark(self):
+        s = tf.direction_scrub("bouncy marching-band parade, trumpet fanfares, bright and warm, joyful, darkly playful, folk-march, hopeful")
+        self.assertEqual(tf.direction_problems(s), [], s)
+        self.assertIn("darkly comic", s)
+
+    def test_every_take_of_a_bright_song_comes_out_dark(self):
+        for n in range(0, 12):
+            style = tf.variant(SONG, n)[0]
+            self.assertEqual(tf.direction_problems(style), [], style)
+            self.assertIn("murky", style)
+
+    def test_direction_note_can_point_to_a_newer_file(self):
+        import json, tempfile
+        with tempfile.TemporaryDirectory() as t:
+            f = os.path.join(t, "words.json"); json.dump({"moods": ["gravelly"], "mixes": ["with a saw"], "always": "swampy", "scrub": {}, "banned": ""}, open(f, "w"))
+            note = os.path.join(t, "note.md"); open(note, "w").write(f"# note\nsound-words-file: {f}\n")
+            old = tf.DIRECTION_NOTE; tf.DIRECTION_NOTE = note
+            try:
+                self.assertEqual(tf.sound_direction()["always"], "swampy")
+                self.assertIn("swampy", tf.variant(SONG, 3)[0])
+            finally:
+                tf.DIRECTION_NOTE = old
