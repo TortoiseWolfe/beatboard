@@ -25,9 +25,47 @@ TAG = "music made with AI (ACE-Step 1.5)"
 LUFS_TARGET = -16.1
 
 KEYS = ["A minor", "D minor", "E minor", "G minor", "C minor", "F minor", "B minor"]
-MOODS = ["moody", "tender", "bright", "spooky but gentle", "dreamy", "driving", "warm", "eerie", "hopeful", "playful"]
-MIXES = ["with extra music box", "with a warmer bass", "with more brass", "with a crunchier guitar", "with soft strings",
-         "with a celesta and bells", "with a rolling piano", "with a tapping rim click", "with a breathy sax", "with a wheezing organ"]
+MOODS = ["moody", "eerie", "murky", "gravelly", "menacing", "muddled", "brooding", "rough and alive", "spooky but gentle", "driving"]
+MIXES = ["with extra music box, slightly detuned", "with a heavier low end", "with a wheezing pump organ", "with a crunchier guitar", "with a bowed saw",
+         "with tape hiss and a smeared room", "with found-object percussion of pots and brake drums", "with a rolling out-of-tune piano",
+         "with a tapping rim click", "with a breathy sax", "with a wheezing accordion"]  # fallback only; sound_direction.json is the source
+
+# Sound direction (Jonathan, 28 Oct and 1 Nov 2026): the band is dark, murky and muddled, never bright, fresh, friendly or a march. The words live in
+# one file, read for every take. The hub's sound-direction note may hold a line "sound-words-file: <path>" to point the factory at a newer file.
+DIRECTION_NOTE = os.environ.get("BW_SOUND_DIRECTION", os.path.expanduser("~/repos/hub/tower/band-2026-10-28/sound-direction-2026-10-28.md"))
+DIRECTION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sound_direction.json")
+
+
+def sound_direction():
+    """{always, moods, mixes, scrub, banned} from the file the direction note points to, else sound_direction.json beside the factory."""
+    path = DIRECTION_FILE
+    try:
+        m = re.search(r"^sound-words-file:\s*(\S+)", open(DIRECTION_NOTE).read(), re.M)
+        if m and os.path.exists(os.path.expanduser(m[1])):
+            path = os.path.expanduser(m[1])
+    except OSError:
+        pass
+    try:
+        d = json.load(open(path))
+    except (OSError, ValueError):
+        d = {}
+    return {"always": d.get("always", ""), "moods": d.get("moods") or MOODS, "mixes": d.get("mixes") or MIXES,
+            "scrub": d.get("scrub", {}), "banned": d.get("banned", "")}
+
+
+def direction_scrub(style, direction=None):
+    """Swap each brightening or marching word in a caption for the direction's dark word, longest word first."""
+    d = direction or sound_direction()
+    for word in sorted(d["scrub"], key=len, reverse=True):
+        style = re.sub(rf"\b{re.escape(word)}\b", d["scrub"][word], style, flags=re.I)
+    return style
+
+
+def direction_problems(style, direction=None):
+    """Banned bright, friendly or marching words still in a caption (empty when it follows the direction)."""
+    d = direction or sound_direction()
+    return re.findall(d["banned"], style, flags=re.I) if d["banned"] else []
+
 
 # Content gate (hub CONTENT-RULE.md, 28 Oct): nothing may read as a figure near a child or as an invitation aimed at children.
 # Same nine phrases as the track-sheet builder. The first eight block a render; the last (send/tell/post/told) is review only.
@@ -171,12 +209,16 @@ def variant(song, n):
     bpm = max(60, song["bpm"] + (r.randint(-4, 4) if n else 0))
     key = song.get("key") if song.get("key_locked") else (r.choice(KEYS) if n else song.get("key", "A minor"))
     rave = song.get("kind") == "rave"
-    extra = f"{r.choice(RAVE_MOODS if rave else MOODS)}, {r.choice(RAVE_MIXES if rave else MIXES)}" if n else ""
+    d = sound_direction()
+    extra = f"{r.choice(RAVE_MOODS if rave else d['moods'])}, {r.choice(RAVE_MIXES if rave else d['mixes'])}" if n else ""
     style = song["style"]
     style = re.sub(r"about \d+ BPM", f"about {bpm} BPM", style)
     if n:
         style = style.replace("minor key", f"{key} feel") if "minor key" in style else style + f", {key}"
         style = style + ", " + extra
+    if not rave:
+        style = direction_scrub(style, d)
+        style += ", " + d["always"] if d["always"] and d["always"] not in style else ""
     seed = 10000 + (h % 80000)
     return style, bpm, seed, key
 

@@ -1,0 +1,15 @@
+{
+  "about": "The band's sound words (Jonathan, 28 Oct and 1 Nov 2026: darker, murkier, muddled, gravel; never bright, fresh, friendly or a marching band). take_factory.variant() reads this file for every take. To change the band's sound, edit this file, or point to another file with a line 'sound-words-file: <path>' in hub/tower/band-2026-10-28/sound-direction-2026-10-28.md. No artist is named here.",
+  "always": "dark and murky, low-mid heavy, rolled-off highs, tape hiss, smeared reverb, loose timing dragging behind the beat, rough and alive",
+  "moods": ["moody", "eerie", "murky", "gravelly", "menacing", "muddled", "brooding", "rough and alive", "spooky but gentle", "driving"],
+  "mixes": ["with extra music box, slightly detuned", "with a heavier low end", "with a wheezing pump organ", "with a crunchier guitar",
+            "with a bowed saw", "with tape hiss and a smeared room", "with found-object percussion of pots and brake drums",
+            "with a rolling out-of-tune piano", "with a tapping rim click", "with a breathy sax", "with a wheezing accordion"],
+  "scrub": {
+    "marching-band": "junkyard band", "marching": "lurching", "march": "lurch", "fanfares": "wheezing stabs", "fanfare": "wheezing stab",
+    "bouncy": "lurching", "bouncing": "lurching", "bright": "murky", "warm": "worn", "friendly": "gravelly", "cheerful": "sardonic",
+    "joyful": "sardonic", "playful": "comic", "hopeful": "wistful", "fresh": "worn", "sparkle": "smear", "uplifting": "brooding",
+    "sunny": "murky", "happy": "sardonic"
+  },
+  "banned": "\\b(bright\\w*|march\\w*|friendly|cheerful|joyful|playful|warm\\w*|hopeful|fresh|fanfares?|sparkl\\w*|bouncy|bouncing|uplifting|sunny|happy)\\b"
+}
