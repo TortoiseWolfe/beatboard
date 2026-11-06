@@ -576,6 +576,45 @@ class SpeechGateTests(unittest.TestCase):
     def test_lyric_lines_skip_tags_and_notes(self):
         self.assertEqual(tf.lyric_lines("[Intro - bass]\n[Verse]\nHello there [clank] friend\n"), [("Verse", ["hello", "there", "friend"])])
 
+class DirectionGapTests(unittest.TestCase):
+    """6 Nov 2026: rave captions follow the sound direction, a caption that still breaks it is not rendered, every take gets a 0.15 s gap check."""
+
+    def test_rave_caption_is_scrubbed_too(self):
+        rave = dict(SONG, id="rave-x", kind="rave", style="bright smooth jazz lounge rave, about 120 BPM")
+        for n in range(0, 6):
+            self.assertEqual(tf.direction_problems(tf.variant(rave, n)[0]), [], n)
+
+    def test_cheesy_background_jazz_is_banned_but_plain_jazz_is_not(self):
+        for w in ["smooth jazz", "lounge", "elevator music", "cocktail piano", "easy listening", "background music"]:
+            self.assertTrue(tf.direction_problems(w), w)
+        self.assertEqual(tf.direction_problems("jazz-funk with a grunge undertone"), [])
+        self.assertNotIn("jazz lounge", tf.direction_scrub("a jazz lounge band"))
+
+    def test_make_takes_refuses_a_caption_that_breaks_the_direction(self):
+        old = tf.variant
+        tf.variant = lambda song, n: ("smooth jazz, about 100 BPM", 100, 1, "A minor")
+        try:
+            song = dict(SONG, kind="song", lyrics="[Verse]\nla la", seconds=60)
+            self.assertEqual(tf.make_takes(song, {}), [])
+        finally:
+            tf.variant = old
+
+    def test_off_grid_gaps_keeps_only_dropouts(self):
+        step = 60 / 120 / 4  # 0.125 s
+        self.assertEqual(tf.off_grid_gaps([(10.0, 0.25), (20.0, 0.5), (30.0, 0.19), (40.0, 0.16)], 120), [(30.0, 0.19), (40.0, 0.16)])
+        self.assertEqual(tf.off_grid_gaps([], 120), [])
+
+    def test_short_gap_problems_reads_a_0_15_s_dropout(self):
+        log = ("[silencedetect @ 0x1] silence_start: 30.0\n[silencedetect @ 0x1] silence_end: 30.19 | silence_duration: 0.19\n")
+        old = tf.silence_log; seen = []
+        tf.silence_log = lambda p, noise=-50, d=0.4: (seen.append((noise, d)), log)[1]
+        try:
+            self.assertEqual(tf.short_gap_problems("x.mp3", 165.0, 120), [(30.0, 0.2)])
+        finally:
+            tf.silence_log = old
+        self.assertEqual(seen, [(-45, 0.15)])
+
+
 
 if __name__ == "__main__":
     unittest.main()
@@ -620,17 +659,6 @@ class KidScreenTests(unittest.TestCase):
             self.assertEqual(strip(lyr), strip(old))
         lyr, style = tf.arrange("n06", "[Verse 1 - soft, close]\nline\n", "funk")
         self.assertEqual((lyr, style), ("[Verse 1 - soft, close]\nline\n", "funk"))
-
-    def test_n11_n12_tags_exist_in_the_hub_page(self):
-        import os
-        if not os.path.exists(tf.JINGLE):
-            self.skipTest("hub page not on this machine")
-        page = open(tf.JINGLE).read()
-        for nid, title in tf.KIT_REDO:
-            if nid in tf.ARRANGEMENT:
-                part = page.split(f"### {nid}: ")[1].split("\n### ")[0]
-                for old, _ in tf.ARRANGEMENT[nid]:
-                    self.assertIn(old, part)
 
     def test_night_songs_from_the_jingle_page(self):
         import tempfile

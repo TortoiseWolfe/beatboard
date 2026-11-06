@@ -216,15 +216,15 @@ def variant(song, n):
     if n:
         style = style.replace("minor key", f"{key} feel") if "minor key" in style else style + f", {key}"
         style = style + ", " + extra
+    style = direction_scrub(style, d)  # 6 Nov: rave captions follow the sound direction too (they used to skip it)
     if not rave:
-        style = direction_scrub(style, d)
         style += ", " + d["always"] if d["always"] and d["always"] not in style else ""
     seed = 10000 + (h % 80000)
     return style, bpm, seed, key
 
 
 def mid_gaps(silence_log, total, head=1.0, tail=6.0):
-    """Dropouts: quiet runs of at least 0.4 s that are not the start (< head s) or the end fade (last tail s)."""
+    """Dropouts: quiet runs, as long as the silence log was asked for (0.4 s by default, 0.15 s in short_gap_problems), that are not the start (< head s) or the end fade (last tail s)."""
     out = []
     for m in re.finditer(r"silence_start: ([\d.]+)\s*\n?.*?silence_end: ([\d.]+) \| silence_duration: ([\d.]+)", silence_log, re.S):
         a, b, d = float(m.group(1)), float(m.group(2)), float(m.group(3))
@@ -232,6 +232,23 @@ def mid_gaps(silence_log, total, head=1.0, tail=6.0):
             continue
         out.append((round(a, 1), round(d, 1)))
     return out
+
+
+SHORT_GAP_NOISE, SHORT_GAP_SECONDS, GRID_TOL = -45, 0.15, 0.03  # 6 Nov: every take gets a 0.15 s gap check
+
+
+def off_grid_gaps(gaps, bpm, tol=GRID_TOL):
+    """Gaps [(start, length)] whose length is not a whole number of sixteenth notes (within tol s): a dropout, not a rest the music put there."""
+    step = 60.0 / bpm / 4
+    return [g for g in gaps if abs(g[1] / step - round(g[1] / step)) * step > tol or round(g[1] / step) < 1]
+
+
+def short_gap_problems(path, total, bpm, plan=None):
+    """Quiet runs of 0.15 s or more (below -45 dB) inside a take that no rest on the sixteenth-note grid and no planned rave stop explains."""
+    gaps = mid_gaps(silence_log(path, SHORT_GAP_NOISE, SHORT_GAP_SECONDS), total)
+    if plan:
+        gaps = judge_gaps(gaps, plan)
+    return off_grid_gaps(gaps, bpm)
 
 
 ASR_MODEL = os.environ.get("BW_ASR_MODEL", "medium")  # 30 Oct: medium reads sung words far better than small (about 25 s for a 150 s take)
@@ -872,6 +889,10 @@ def make_takes(song, catalog):
             return []
     n = next_index(catalog, song["id"])
     style, bpm, seed, key = variant(song, n)
+    broken = direction_problems(style)
+    if broken:
+        print("sound direction: not rendering", song["id"], "caption still has", broken, flush=True)
+        return []
     outdir = f"{TAKES}/{song['id']}"; os.makedirs(outdir, exist_ok=True)
     work = f"{TAKES}/work"; os.makedirs(work, exist_ok=True)
     made = []
@@ -903,6 +924,8 @@ def make_takes(song, catalog):
             bad_seams = check_rave(dst, plan)
         elif seams:
             bad_seams = seam_report(dst, seams)
+        short = short_gap_problems(dst, total, bpm, plan) if not gaps else []
+        gaps = gaps or short
         ok = not gaps and not bad_seams and (song["kind"] != "rave" or total >= 900)
         unread = []
         if ok and song.get("kid_safe"):
