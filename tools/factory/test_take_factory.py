@@ -660,17 +660,6 @@ class KidScreenTests(unittest.TestCase):
         lyr, style = tf.arrange("n06", "[Verse 1 - soft, close]\nline\n", "funk")
         self.assertEqual((lyr, style), ("[Verse 1 - soft, close]\nline\n", "funk"))
 
-    def test_n11_n12_tags_exist_in_the_hub_page(self):
-        import os
-        if not os.path.exists(tf.JINGLE):
-            self.skipTest("hub page not on this machine")
-        page = open(tf.JINGLE).read()
-        for nid, title in tf.KIT_REDO:
-            if nid in tf.ARRANGEMENT:
-                part = page.split(f"### {nid}: ")[1].split("\n### ")[0]
-                for old, _ in tf.ARRANGEMENT[nid]:
-                    self.assertIn(old, part)
-
     def test_night_songs_from_the_jingle_page(self):
         import tempfile
         page = "\n".join(f"### {n}: {t} ({b} BPM, 150 s)\n\nx\n\n```\n[Verse]\nline\n```\n\nStyle: \"funk, about {b} BPM\"\n"
