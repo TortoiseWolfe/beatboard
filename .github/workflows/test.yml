@@ -27,8 +27,13 @@ jobs:
           WhisperModel('small', device='cpu', compute_type='int8', cpu_threads=4)
           print('Model downloaded and cached')
           "
+      - name: Verify speech model environment
+        working-directory: tools/factory
+        env:
+          BW_ASR_PY: ~/.cache/bandwagon-asr/venv/bin/python
+        run: python3 test_speech_model.py
       - name: Take factory unit tests
         working-directory: tools/factory
         env:
-          BW_ASR_PY: /nonexistent/python
+          BW_ASR_PY: ~/.cache/bandwagon-asr/venv/bin/python
         run: python3 -m unittest test_take_factory
