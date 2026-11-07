@@ -19,10 +19,10 @@ jobs:
       - run: npm test
       - name: Set up speech model environment
         run: |
-          python3 -m venv ~/.cache/bandwagon-asr/venv
-          ~/.cache/bandwagon-asr/venv/bin/pip install --quiet faster-whisper
+          python3 -m venv ${{ runner.home }}/.cache/bandwagon-asr/venv
+          ${{ runner.home }}/.cache/bandwagon-asr/venv/bin/pip install --quiet faster-whisper
           # Pre-download the small model to avoid network delay in tests
-          ~/.cache/bandwagon-asr/venv/bin/python -c "
+          ${{ runner.home }}/.cache/bandwagon-asr/venv/bin/python -c "
           from faster_whisper import WhisperModel
           WhisperModel('small', device='cpu', compute_type='int8', cpu_threads=4)
           print('Model downloaded and cached')
@@ -30,10 +30,10 @@ jobs:
       - name: Verify speech model environment
         working-directory: tools/factory
         env:
-          BW_ASR_PY: ~/.cache/bandwagon-asr/venv/bin/python
+          BW_ASR_PY: ${{ runner.home }}/.cache/bandwagon-asr/venv/bin/python
         run: python3 test_speech_model.py
       - name: Take factory unit tests
         working-directory: tools/factory
         env:
-          BW_ASR_PY: ~/.cache/bandwagon-asr/venv/bin/python
+          BW_ASR_PY: ${{ runner.home }}/.cache/bandwagon-asr/venv/bin/python
         run: python3 -m unittest test_take_factory
