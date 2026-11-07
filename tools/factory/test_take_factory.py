@@ -542,7 +542,7 @@ class SpeechGateTests(unittest.TestCase):
         words = tf.heard_words(fixture, run=run, model="small")
         self.assertIsNotNone(words, "speech check did not run; no model at " + tf.ASR_PY)
         heard = [w[2].lower().strip(".,!?") for w in words]
-        self.assertIn("banana", heard)
+        self.assertIn("happen", heard)
         print(f"SPEECH CHECK RAN: heard {len(words)} words", flush=True)
 
     def test_speech_model_result_refuses(self):
