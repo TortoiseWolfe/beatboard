@@ -2,6 +2,7 @@ import contextlib
 import io
 import os
 import re
+import subprocess
 import unittest
 import take_factory as tf
 
@@ -531,7 +532,14 @@ class SpeechGateTests(unittest.TestCase):
     @unittest.skipUnless(os.path.exists(tf.ASR_PY), "no speech model installed here")
     def test_real_speech_model_hears_the_fixture(self):
         fixture = os.path.join(os.path.dirname(__file__), "fixtures", "speech.wav")
-        words = tf.heard_words(fixture, model="small")
+
+        def run(cmd, **kw):
+            r = subprocess.run(cmd, **kw)
+            if r.returncode != 0 or not (r.stdout or "").strip():
+                print("ASR FAILED:", cmd, "rc", r.returncode, "stderr", r.stderr, flush=True)
+            return r
+
+        words = tf.heard_words(fixture, run=run, model="small")
         self.assertIsNotNone(words, "speech check did not run; no model at " + tf.ASR_PY)
         heard = [w[2].lower().strip(".,!?") for w in words]
         self.assertIn("happen", heard)
