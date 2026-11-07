@@ -209,15 +209,18 @@ def variant(song, n):
     bpm = max(60, song["bpm"] + (r.randint(-4, 4) if n else 0))
     key = song.get("key") if song.get("key_locked") else (r.choice(KEYS) if n else song.get("key", "A minor"))
     rave = song.get("kind") == "rave"
+    jingle = song.get("kind") == "jingle"  # company ad: the style comes from the company brief, not the band's dark sound (7 Nov overhaul)
     d = sound_direction()
-    extra = f"{r.choice(RAVE_MOODS if rave else d['moods'])}, {r.choice(RAVE_MIXES if rave else d['mixes'])}" if n else ""
+    moods, mixes = (JINGLE_MOODS, JINGLE_MIXES) if jingle else (RAVE_MOODS, RAVE_MIXES) if rave else (d["moods"], d["mixes"])
+    extra = f"{r.choice(moods)}, {r.choice(mixes)}" if n else ""
     style = song["style"]
     style = re.sub(r"about \d+ BPM", f"about {bpm} BPM", style)
     if n:
         style = style.replace("minor key", f"{key} feel") if "minor key" in style else style + f", {key}"
         style = style + ", " + extra
-    style = direction_scrub(style, d)  # 6 Nov: rave captions follow the sound direction too (they used to skip it)
-    if not rave:
+    if not jingle:
+        style = direction_scrub(style, d)  # 6 Nov: rave captions follow the sound direction too; 7 Nov: company jingles skip the band's dark scrub
+    if not rave and not jingle:
         style += ", " + d["always"] if d["always"] and d["always"] not in style else ""
     seed = 10000 + (h % 80000)
     return style, bpm, seed, key
@@ -832,6 +835,11 @@ RAVES = [("rave-1", "Pedal Beat Rave (A minor)", "A minor", 170), ("rave-2", "Br
 RAVES2 = [("rave-5", "Kit and Synth Rave (C minor)", "C minor", 170), ("rave-6", "Hollow Wheel Rave (F minor)", "F minor", 172),
           ("rave-7", "Lantern Drop Rave (B minor)", "B minor", 174), ("rave-8", "Copper Pulse Rave (A minor)", "A minor", 168),
           ("rave-9", "Chain Lightning Rave (E minor)", "E minor", 170), ("rave-10", "Wagon Wheel Drop (D minor)", "D minor", 172)]
+# Company jingles (7 Nov 2026): a grown-up ad sound for the company's customers. No kids' gang chorus, glockenspiel, calliope or dark-cabaret words.
+JINGLE_MOODS = ["confident", "punchy", "polished", "upbeat but grown-up", "warm and assured", "slick", "driving", "swaggering"]
+JINGLE_MIXES = ["with tight funk guitar and a brass stab", "with a modern synth bass and clean claps", "with a soul horn section",
+                "with a crisp snare and a bright electric piano", "with a bold lead voice and an adult backing chorus", "with a slap bass and handclaps"]
+
 RAVE_MOODS = ["muddy", "raw", "gritty", "wild", "rough", "scrappy", "feral", "roaring"]
 RAVE_MIXES = ["with a crunchier guitar", "with a heavier distorted bass", "with a tighter breakbeat", "with fuzzy garage guitar",
               "with a noisier lo-fi mix", "with a rattling snare", "with a bicycle bell cutting through", "with a gritty amen-style break"]
