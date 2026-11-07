@@ -1,5 +1,8 @@
+import contextlib
+import io
 import os
 import re
+import subprocess
 import unittest
 import take_factory as tf
 
@@ -521,7 +524,26 @@ class SpeechGateTests(unittest.TestCase):
         self.assertEqual(tf.unread_spans(words, self.LYRICS, 60.0), [])
 
     def test_no_speech_model_skips_and_passes(self):
-        self.assertEqual(tf.speech_problems("x.mp3", self.LYRICS, 60.0, hear=lambda p: None), [])
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            self.assertEqual(tf.speech_problems("x.mp3", self.LYRICS, 60.0, hear=lambda p: None), [])
+        self.assertIn("SPEECH CHECK SKIPPED", buf.getvalue())
+
+    @unittest.skipUnless(os.path.exists(tf.ASR_PY), "no speech model installed here")
+    def test_real_speech_model_hears_the_fixture(self):
+        fixture = os.path.join(os.path.dirname(__file__), "fixtures", "speech.wav")
+
+        def run(cmd, **kw):
+            r = subprocess.run(cmd, **kw)
+            if r.returncode != 0 or not (r.stdout or "").strip():
+                print("ASR FAILED:", cmd, "rc", r.returncode, "stderr", r.stderr, flush=True)
+            return r
+
+        words = tf.heard_words(fixture, run=run, model="small")
+        self.assertIsNotNone(words, "speech check did not run; no model at " + tf.ASR_PY)
+        heard = [w[2].lower().strip(".,!?") for w in words]
+        self.assertIn("happen", heard)
+        print(f"SPEECH CHECK RAN: heard {len(words)} words", flush=True)
 
     def test_speech_model_result_refuses(self):
         self.assertTrue(tf.speech_problems("x.mp3", self.LYRICS, 60.0, hear=lambda p: self.heard("wrench in the works", 40.0)))
