@@ -20,7 +20,10 @@ jobs:
       - name: Set up speech model environment
         run: |
           python3 -m venv "$HOME/.cache/bandwagon-asr/venv"
-          "$HOME/.cache/bandwagon-asr/venv/bin/pip" install --quiet faster-whisper
+          # Pin the versions the speech check is known to work with: newer av releases
+          # drop the metadata_errors argument that faster-whisper passes to av.open.
+          "$HOME/.cache/bandwagon-asr/venv/bin/pip" install --quiet "faster-whisper==1.2.1" "av==18.1.0"
+          "$HOME/.cache/bandwagon-asr/venv/bin/pip" freeze
           # Pre-download the small model to avoid network delay in tests
           "$HOME/.cache/bandwagon-asr/venv/bin/python" -c "
           from faster_whisper import WhisperModel
