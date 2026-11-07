@@ -637,6 +637,54 @@ class DirectionGapTests(unittest.TestCase):
         self.assertEqual(seen, [(-45, 0.15)])
 
 
+JINGLE = {"id": "estimify-hook", "kind": "jingle", "bpm": 104, "style": "confident funk-pop, brass stab, adult lead and backing chorus, about 104 BPM",
+          "lyrics": "[Hook]\nPrice it right today\nEstimify, hey!", "key": "G major"}
+
+
+class JingleModeTests(unittest.TestCase):
+    def test_jingle_takes_skip_the_dark_scrub_and_murk_words(self):
+        d = tf.sound_direction()
+        for n in range(0, 12):
+            style = tf.variant(JINGLE, n)[0]
+            self.assertIn("confident funk-pop", style)  # not swapped by the scrub
+            self.assertNotIn(d["always"], style)
+            for dark in ("murky", "gravelly", "menacing", "brooding", "junkyard", "tape hiss"):
+                self.assertNotIn(dark, style)
+
+    def test_jingle_scrub_leaves_bright_words_alone_but_band_still_scrubs_them(self):
+        song = dict(JINGLE, style="bright, friendly pop, about 104 BPM")
+        self.assertIn("bright, friendly", tf.variant(song, 0)[0])
+        band = dict(song, kind="story")
+        self.assertNotIn("bright", tf.variant(band, 0)[0])
+
+    def test_jingle_extras_come_from_the_jingle_lists(self):
+        style = tf.variant(JINGLE, 3)[0]
+        self.assertTrue(any(m in style for m in tf.JINGLE_MOODS))
+        self.assertTrue(any(m in style for m in tf.JINGLE_MIXES))
+
+    def test_band_take_is_unchanged_by_jingle_mode(self):
+        band = dict(SONG, kind="story")
+        style = tf.variant(band, 0)[0]
+        self.assertIn(tf.sound_direction()["always"], style)
+
+    def test_render_sends_the_lyrics_to_the_audio_server_script(self):
+        import tempfile
+        seen = {}
+        class R:  # what sh() returns
+            returncode = 0; stdout = ""; stderr = ""
+        def fake_sh(*a, **k):
+            seen["args"] = a
+            seen["lyrics"] = open([x for x in a if str(x).endswith(".lyrics.txt")][0]).read()
+            return R()
+        old_sh, old_wait = tf.sh, tf.wait_gpu_free
+        tf.sh, tf.wait_gpu_free = fake_sh, lambda *a, **k: None
+        try:
+            with tempfile.TemporaryDirectory() as out:
+                tf.render(JINGLE["lyrics"], "confident funk-pop", "est-t1", 123, 12, 104, out, 4)
+        finally:
+            tf.sh, tf.wait_gpu_free = old_sh, old_wait
+        self.assertEqual(seen["lyrics"], JINGLE["lyrics"])
+
 
 if __name__ == "__main__":
     unittest.main()
