@@ -15,6 +15,7 @@
      "licence": "CC0", "credit": "Scarypiano, Karoryfer Samples (University of Iowa piano recordings)"},
     {"channel": 4, "name": "Reed", "instrument": "Alto sax", "program": "karoryfer.weresax/Programs/Sax.sfz",
      "kind": "sustained", "range": [55, 74], "step": 3, "hold_s": 2.0, "tail_s": 2.0, "velocity": 100,
+     "sfz_patch": {"off_mode": "normal"},
      "licence": "CC0", "credit": "Weresax, Karoryfer Samples"},
     {"channel": 5, "name": "Brass", "instrument": "Trumpet", "program": "VSCO-2-CE/Brass/Trumpet",
      "kind": "sustained", "range": [60, 79], "step": 3, "hold_s": 2.0, "tail_s": 2.0, "velocity": 100,

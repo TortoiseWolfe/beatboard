@@ -90,10 +90,44 @@ def pack_json(member, notes):
             "notes": {str(n["key"]): {k: v for k, v in n.items() if k != "key"} for n in notes}}
 
 
+def patch_sfz_text(text, prog_dir_in_container, patch):
+    """Return `text` of an SFZ program with some opcodes replaced and its relative paths made absolute.
+
+    `patch` is {opcode: value}. Each opcode must be set on exactly one line of the program, otherwise this raises, so a
+    typo cannot pass silently. Relative `#include "x"` lines become absolute under `prog_dir_in_container`, and a
+    `default_path` is added to the first <control> header so samples are still found when the copy lives elsewhere.
+    """
+    import re
+    for opcode, value in patch.items():
+        pat = re.compile(r"^(\s*)%s\s*=\s*\S+" % re.escape(opcode), re.M)
+        found = len(pat.findall(text))
+        if found != 1:
+            raise ValueError("expected exactly one %r line in the SFZ, found %d" % (opcode, found))
+        text = pat.sub(lambda m: "%s%s=%s" % (m.group(1), opcode, value), text)
+    text = re.sub(r'#include\s+"(?!/)([^"]+)"', lambda m: '#include "%s/%s"' % (prog_dir_in_container, m.group(1)), text)
+    if "<control>" not in text:
+        raise ValueError("the SFZ has no <control> header to hold default_path")
+    return text.replace("<control>", "<control>\ndefault_path=%s/" % prog_dir_in_container, 1)
+
+
+def patched_sfz(member, lib_dir, work_dir):
+    """Write the member's program, patched per members.json "sfz_patch", into work_dir; return its container path."""
+    prog = member["program"]
+    with open(os.path.join(lib_dir, prog)) as f:
+        text = f.read()
+    inside = "/sfzlib/" + os.path.dirname(prog)
+    path = os.path.join(work_dir, member["name"].lower() + "-patched.sfz")
+    with open(path, "w") as f:
+        f.write(patch_sfz_text(text, inside, member["sfz_patch"]))
+    return "/work/" + os.path.basename(path)
+
+
 def sfz_for(member, lib_dir, work_dir):
     """Path (inside the container, with lib_dir mounted at /sfzlib and work_dir at /work) of the SFZ to play."""
     prog = member["program"]
     if prog.endswith(".sfz"):
+        if member.get("sfz_patch"):
+            return patched_sfz(member, lib_dir, work_dir)
         return "/sfzlib/" + prog
     names = sorted(n for n in os.listdir(os.path.join(lib_dir, prog, "sus")) if n.endswith(".wav"))
     text = vsco.sfz_text(names, sample_dir_in_sfz="/sfzlib/%s/sus" % prog, top=member["range"][1])

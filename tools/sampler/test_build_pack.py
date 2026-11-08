@@ -178,5 +178,35 @@ class BuildMemberTests(unittest.TestCase):
                 bp.build_member(MEMBER, "/sfzlib/x/test.sfz", os.path.join(d, "o"), work, silent, self.fake_export)
 
 
+class PatchSfzTests(unittest.TestCase):
+    PROG = '<control>\nset_cc7=100\n<global>\nampeg_release=0.001\noff_mode=fast\n\n#include "map.sfz"\n'
+
+    def test_replaces_the_opcode_and_makes_paths_absolute(self):
+        out = bp.patch_sfz_text(self.PROG, "/sfzlib/lib/Programs", {"off_mode": "normal"})
+        self.assertIn("off_mode=normal", out)
+        self.assertNotIn("off_mode=fast", out)
+        self.assertIn('#include "/sfzlib/lib/Programs/map.sfz"', out)
+        self.assertIn("default_path=/sfzlib/lib/Programs/", out)
+        self.assertIn("ampeg_release=0.001", out)  # nothing else changed
+
+    def test_a_missing_opcode_is_an_error(self):
+        with self.assertRaises(ValueError):
+            bp.patch_sfz_text(self.PROG, "/sfzlib/x", {"off_modee": "normal"})
+
+    def test_sfz_for_writes_the_patched_copy_only_when_asked(self):
+        with tempfile.TemporaryDirectory() as d:
+            lib, work = os.path.join(d, "lib"), os.path.join(d, "work")
+            os.makedirs(os.path.join(lib, "p"))
+            os.makedirs(work)
+            with open(os.path.join(lib, "p", "a.sfz"), "w") as f:
+                f.write(self.PROG)
+            plain = {"name": "Reed", "program": "p/a.sfz"}
+            self.assertEqual(bp.sfz_for(plain, lib, work), "/sfzlib/p/a.sfz")
+            patched = dict(plain, sfz_patch={"off_mode": "normal"})
+            self.assertEqual(bp.sfz_for(patched, lib, work), "/work/reed-patched.sfz")
+            with open(os.path.join(work, "reed-patched.sfz")) as f:
+                self.assertIn("off_mode=normal", f.read())
+
+
 if __name__ == "__main__":
     unittest.main()
