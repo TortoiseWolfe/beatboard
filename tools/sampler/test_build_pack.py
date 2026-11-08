@@ -29,19 +29,29 @@ MEMBER = {"channel": 0, "name": "Test", "instrument": "Sine", "program": "x/test
 
 class SfizzTests(unittest.TestCase):
     def test_only_real_flags(self):
-        cmd = sfizz.render_args("/lib/a.sfz", "/work/a.mid", "/work/a.wav")
+        cmd = sfizz.render_args("/sfzlib/a.sfz", "/work/a.mid", "/work/a.wav")
         flags = {c for c in cmd if c.startswith("--")}
         self.assertEqual(flags, {"--sfz", "--midi", "--wav", "--samplerate", "--quality", "--polyphony", "--use-eot"})
         self.assertNotIn("--oversampling", cmd)
 
     def test_container_command_goes_through_docker_heavy_with_timeout(self):
-        cmd = sfizz.container_command(["sfizz_render"], [("/h", "/lib", "ro")], tag="t", timeout=60, heavy="/x/docker-heavy.sh")
+        cmd = sfizz.container_command(["sfizz_render"], [("/h", "/sfzlib", "ro")], tag="t", timeout=60, heavy="/x/docker-heavy.sh")
         self.assertEqual(cmd[0], "/x/docker-heavy.sh")
         self.assertIn("--timeout", cmd)
         self.assertEqual(cmd[cmd.index("--timeout") + 1], "60")
         self.assertIn("none", cmd)  # no network
-        self.assertIn("/h:/lib:ro", cmd)
+        self.assertIn("/h:/sfzlib:ro", cmd)
         self.assertEqual(cmd[-1], "sfizz_render")
+
+    def test_the_sample_library_is_never_mounted_over_a_system_folder(self):
+        # Mounting it at /lib hid the container's own /lib (the loader and shared libraries) and sfizz_render
+        # failed with "no such file or directory" (8 Nov 2026).
+        import inspect
+        import render
+        for mod in (bp, render):
+            src = inspect.getsource(mod)
+            for system in ('"/lib"', '"/usr"', '"/bin"', '"/etc"'):
+                self.assertNotIn("(lib_dir, %s" % system, src)
 
 
 class MidiEndTests(unittest.TestCase):
@@ -116,9 +126,9 @@ class VscoTests(unittest.TestCase):
         self.assertEqual(top["hikey"], 79)
 
     def test_sfz_text_names_each_file(self):
-        text = vsco.sfz_text(self.NAMES, sample_dir_in_sfz="/lib/V/sus")
+        text = vsco.sfz_text(self.NAMES, sample_dir_in_sfz="/sfzlib/V/sus")
         for n in self.NAMES:
-            self.assertIn("sample=/lib/V/sus/" + n, text)
+            self.assertIn("sample=/sfzlib/V/sus/" + n, text)
         self.assertIn("ampeg_release", text)
 
 
@@ -138,7 +148,7 @@ class BuildMemberTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             out, work = os.path.join(d, "out"), os.path.join(d, "work")
             os.makedirs(work)
-            pack = bp.build_member(MEMBER, "/lib/x/test.sfz", out, work, self.fake_render, self.fake_export)
+            pack = bp.build_member(MEMBER, "/sfzlib/x/test.sfz", out, work, self.fake_render, self.fake_export)
             self.assertEqual(sorted(pack["notes"]), ["48", "51", "54", "55"])
             n = pack["notes"]["48"]
             self.assertEqual(n["hold_s"], 0.2)
@@ -154,7 +164,7 @@ class BuildMemberTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             work = os.path.join(d, "w")
             os.makedirs(work)
-            pack = bp.build_member(shot, "/lib/x/d.sfz", os.path.join(d, "o"), work, self.fake_render, self.fake_export)
+            pack = bp.build_member(shot, "/sfzlib/x/d.sfz", os.path.join(d, "o"), work, self.fake_render, self.fake_export)
             self.assertTrue(pack["oneshot"])
             self.assertEqual(pack["notes"]["36"]["release_s"], 0.0)
 
@@ -165,7 +175,7 @@ class BuildMemberTests(unittest.TestCase):
             work = os.path.join(d, "w")
             os.makedirs(work)
             with self.assertRaises(RuntimeError):
-                bp.build_member(MEMBER, "/lib/x/test.sfz", os.path.join(d, "o"), work, silent, self.fake_export)
+                bp.build_member(MEMBER, "/sfzlib/x/test.sfz", os.path.join(d, "o"), work, silent, self.fake_export)
 
 
 if __name__ == "__main__":

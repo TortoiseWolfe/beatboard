@@ -59,7 +59,7 @@ def render_tune(midi_path, lib_dir, packs_dir, out_dir, cfg, run=sfizz.run, rate
             f.write(midisplit.write_channel(ppq, events, ch, tail_ticks(member, cfg["bpm"], ppq)))
         sfz = build_pack.sfz_for(member, lib_dir, work)
         inner = sfizz.render_args(sfz, "/work/" + slug + ".mid", "/work/" + slug + "-raw.wav", rate=rate)
-        run(sfizz.container_command(inner, [(lib_dir, "/lib", "ro"), (work, "/work", "rw")], tag="render-" + slug))
+        run(sfizz.container_command(inner, [(lib_dir, "/sfzlib", "ro"), (work, "/work", "rw")], tag="render-" + slug))
         pcm = os.path.join(work, slug + "-pcm.wav")
         wavio.to_pcm16(os.path.join(work, slug + "-raw.wav"), pcm, rate=rate, channels=2)
         rate_, chans = wavio.read(pcm)

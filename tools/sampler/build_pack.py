@@ -91,12 +91,12 @@ def pack_json(member, notes):
 
 
 def sfz_for(member, lib_dir, work_dir):
-    """Path (inside the container, with lib_dir mounted at /lib and work_dir at /work) of the SFZ to play."""
+    """Path (inside the container, with lib_dir mounted at /sfzlib and work_dir at /work) of the SFZ to play."""
     prog = member["program"]
     if prog.endswith(".sfz"):
-        return "/lib/" + prog
+        return "/sfzlib/" + prog
     names = sorted(n for n in os.listdir(os.path.join(lib_dir, prog, "sus")) if n.endswith(".wav"))
-    text = vsco.sfz_text(names, sample_dir_in_sfz="/lib/%s/sus" % prog, top=member["range"][1])
+    text = vsco.sfz_text(names, sample_dir_in_sfz="/sfzlib/%s/sus" % prog, top=member["range"][1])
     path = os.path.join(work_dir, member["name"].lower() + "-generated.sfz")
     with open(path, "w") as f:
         f.write(text)
@@ -111,7 +111,7 @@ def container_render(lib_dir, work_dir, tag):
         with open(mid_path, "wb") as f:
             f.write(midi)
         inner = sfizz.render_args(sfz, "/work/" + base + ".mid", "/work/" + base + "-raw.wav", rate=RATE)
-        sfizz.run(sfizz.container_command(inner, [(lib_dir, "/lib", "ro"), (work_dir, "/work", "rw")], tag=tag))
+        sfizz.run(sfizz.container_command(inner, [(lib_dir, "/sfzlib", "ro"), (work_dir, "/work", "rw")], tag=tag))
         wavio.to_pcm16(os.path.join(work_dir, base + "-raw.wav"), wav_path, rate=RATE, channels=2)
     return render
 
