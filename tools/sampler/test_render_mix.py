@@ -88,6 +88,11 @@ class MixTests(unittest.TestCase):
         self.assertIn("acompressor", g)
         self.assertIn("[3:a]afir", g)
 
+    def test_advance_moves_every_track_earlier_by_the_same_amount(self):
+        g = mix.filtergraph(["Timber", "Crash"], 2, advance_ms=12.5)
+        self.assertEqual(g.count("atrim=start=0.012500"), 2)
+        self.assertNotIn("atrim", mix.filtergraph(["Timber", "Crash"], 2))
+
     def test_room_impulse_is_repeatable_and_decays(self):
         with tempfile.TemporaryDirectory() as d:
             a, b = os.path.join(d, "a.wav"), os.path.join(d, "b.wav")
