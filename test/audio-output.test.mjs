@@ -70,8 +70,9 @@ describe('audio output (headless Chromium, real keys)', () => {
     page = await browser.newPage();
     page.on('pageerror', e => problems.push('pageerror: ' + e.message));
     page.on('console', m => { if (m.type() === 'error' && !/status of 404/.test(m.text())) problems.push('console: ' + m.text()); });
-    // jingle-local/ is gitignored on purpose, so its manifest 404 is expected; any other bad response is a bug
-    page.on('response', r => { if (r.status() >= 400 && !r.url().includes('/assets/jingle-local/')) problems.push(`http ${r.status()}: ${r.url()}`); });
+    // jingle-local/ is gitignored on purpose, so its manifest 404 is expected; so is a sampled-instrument pack that has not
+    // been shipped yet (the game then keeps its built-in sounds). Any other bad response is a bug.
+    page.on('response', r => { if (r.status() >= 400 && !/\/assets\/(jingle-local|packs)\//.test(r.url())) problems.push(`http ${r.status()}: ${r.url()}`); });
     await page.addInitScript(tapOutput);
     await page.goto(base + '/', { waitUntil: 'networkidle' });
     await page.waitForFunction(() => document.querySelector('.mixer-track'), null, { timeout: 15000 });

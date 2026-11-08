@@ -45,12 +45,17 @@ def room_impulse(path, rate=48000, seconds=0.7, seed=7):
     wavio.write(path, rate, [[v * scale for v in ch] for ch in chans])
 
 
-def filtergraph(names, ir_index):
-    """The ffmpeg -filter_complex string for tracks named `names` (inputs 0..n-1) and the impulse at input ir_index."""
+def filtergraph(names, ir_index, advance_ms=0.0):
+    """The ffmpeg -filter_complex string for tracks named `names` (inputs 0..n-1) and the impulse at input ir_index.
+
+    `advance_ms` > 0 plays every track that much earlier (the start is trimmed), all by the same amount, so the band keeps
+    its own timing and the whole mix moves onto the beat grid.
+    """
     parts = []
+    shift = f"atrim=start={advance_ms / 1000.0:.6f},asetpts=PTS-STARTPTS," if advance_ms > 0 else ""
     for i, name in enumerate(names):
         eq, trim = TONE.get(name.lower(), DEFAULT_TONE)
-        parts.append(f"[{i}:a]{eq},volume={trim}dB[t{i}]")
+        parts.append(f"[{i}:a]{shift}{eq},volume={trim}dB[t{i}]")
     ins = "".join(f"[t{i}]" for i in range(len(names)))
     parts.append(f"{ins}amix=inputs={len(names)}:normalize=0:duration=longest[dry]")
     parts.append("[dry]asplit[a][b]")
@@ -61,8 +66,12 @@ def filtergraph(names, ir_index):
     return ";".join(parts)
 
 
-def mix_tracks(tracks, out_path, work_dir, target=TARGET_LUFS):
-    """tracks: {member name: wav path}. Writes the 48 kHz 16-bit stereo mix and returns its loudness and peak."""
+def mix_tracks(tracks, out_path, work_dir, target=TARGET_LUFS, advance_ms=0.0):
+    """tracks: {member name: wav path}. Writes the 48 kHz 16-bit stereo mix and returns its loudness and peak.
+
+    `advance_ms`: see filtergraph(). Sampled instruments land their energy a few milliseconds after the note-on (the
+    sample's own attack); `lock_ms` measures that on a first mix so a second mix can move it onto the grid.
+    """
     os.makedirs(work_dir, exist_ok=True)
     names = sorted(tracks, key=str.lower)
     ir = os.path.join(work_dir, "room.wav")
@@ -71,14 +80,23 @@ def mix_tracks(tracks, out_path, work_dir, target=TARGET_LUFS):
     cmd = ["ffmpeg", "-y", "-v", "error"]
     for n in names:
         cmd += ["-i", tracks[n]]
-    cmd += ["-i", ir, "-filter_complex", filtergraph(names, len(names)), "-map", "[out]", "-ar", "48000", "-c:a", "pcm_f32le", raw]
+    cmd += ["-i", ir, "-filter_complex", filtergraph(names, len(names), advance_ms), "-map", "[out]", "-ar", "48000", "-c:a", "pcm_f32le", raw]
     wavio.run(*cmd)
     gain = round(target - take_factory.lufs(raw), 2)
     wavio.run("ffmpeg", "-y", "-v", "error", "-i", raw, "-af",
               f"volume={gain}dB,alimiter=limit={CEILING:.4f}:level=disabled:attack=5:release=50",
               "-ar", "48000", "-c:a", "pcm_s16le", out_path)
     _, chans = wavio.read(out_path)
-    return {"lufs": take_factory.lufs(out_path), "peak": wavio.peak(chans), "gain_db": gain}
+    return {"lufs": take_factory.lufs(out_path), "peak": wavio.peak(chans), "gain_db": gain, "advance_ms": advance_ms}
+
+
+def lock_ms(mix_path, bpm):
+    """How many milliseconds late the mix's beat grid is (positive = late). 0 when the beat is too weak to measure."""
+    import gate  # noqa: E402
+    g = gate.grid(mix_path, bpm)
+    if g["sharpness"] < gate.MIN_SHARP or abs(g["ms"]) > 50:
+        return 0.0
+    return max(0.0, g["ms"])
 
 
 def main(argv):
@@ -86,12 +104,19 @@ def main(argv):
     ap.add_argument("tracks_dir")
     ap.add_argument("out")
     ap.add_argument("--lufs", type=float, default=TARGET_LUFS)
+    ap.add_argument("--lock-bpm", type=float, help="mix once, measure how late the beat grid is, and mix again moved earlier by that")
     a = ap.parse_args(argv)
     tracks = {os.path.splitext(f)[0]: os.path.join(a.tracks_dir, f) for f in sorted(os.listdir(a.tracks_dir)) if f.endswith(".wav")}
     if not tracks:
         print("no .wav tracks in", a.tracks_dir)
         return 2
-    print(mix_tracks(tracks, a.out, os.path.join(os.path.dirname(os.path.abspath(a.out)), "_mixwork"), a.lufs))
+    work = os.path.join(os.path.dirname(os.path.abspath(a.out)), "_mixwork")
+    advance = 0.0
+    if a.lock_bpm:
+        mix_tracks(tracks, a.out, work, a.lufs)
+        advance = lock_ms(a.out, a.lock_bpm)
+        print("grid late by %.2f ms; moving every track earlier by that" % advance)
+    print(mix_tracks(tracks, a.out, work, a.lufs, advance))
     return 0
 
 

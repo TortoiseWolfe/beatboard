@@ -4,6 +4,7 @@
  * Lookahead: ~25ms timer, 100ms window, scheduled on AudioContext.currentTime.
  */
 import { Kit } from './kit.js';
+import { PackPlayer } from './sampler.js';
 import { getPreset, getDefaultPreset, presetNames } from './patterns.js';
 import { computeAudible, resetMixer, clearAllSolo } from './mixer.js';
 import { loadKeymap, saveKeymap, loadLayer, saveLayer, isTextInputFocused, createLearnMode, LAYERS } from './keymap.js';
@@ -54,6 +55,7 @@ export class Engine {
 
     this.jingleManifest = null;
     this.jingleLocalManifest = null;
+    this.packs = null;
     this.updateTiming();
   }
 
@@ -84,6 +86,7 @@ export class Engine {
     this.updateTrackGains();
 
     await this.loadSamples();
+    await this.loadPack('ivory', 'assets/packs/ivory');
     this.updateTiming();
     this.startLookaheadClock();
   }
@@ -445,7 +448,38 @@ export class Engine {
     this.kit.masterGain = originalMasterGain;
   }
 
+  /** Load a sampled instrument pack (pack.json plus note files). A missing pack is fine: the game keeps its built-in sounds. */
+  async loadPack(name, baseUrl) {
+    if (!this.actx) return false;
+    if (!this.packs) this.packs = new PackPlayer(this.actx);
+    try {
+      await this.packs.load(name, baseUrl);
+      return true;
+    } catch (e) {
+      console.warn(`pack ${name} not loaded, using built-in sounds`, e);
+      return false;
+    }
+  }
+
+  /** Play one note of a loaded pack. A note plays its whole natural sound unless lengthS cuts it with a fade. */
+  playPackNote(name, midiKey, when, dest, lengthS) {
+    if (!this.packs?.has(name)) return null;
+    return this.packs.play(name, midiKey, when, dest, lengthS);
+  }
+
+  /** The game's piano names ("c1", "c1s" for C sharp, "c2") to a MIDI key. The game's c1 is middle C (60), so c2 is 72. Null for anything else. */
+  static noteNameToMidi(noteName) {
+    const m = /^([a-g])(\d)(s?)$/i.exec(noteName);
+    if (!m) return null;
+    const base = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 }[m[1].toLowerCase()];
+    return 60 + (Number(m[2]) - 1) * 12 + base + (m[3] ? 1 : 0);
+  }
+
   playPianoNote(noteName, when, dest) {
+    if (this.packs?.has('ivory')) {
+      const midi = Engine.noteNameToMidi(noteName);
+      if (midi != null && this.playPackNote('ivory', midi, when, dest)) return;
+    }
     const key = noteName.toLowerCase();
     const buffer = this.pianoBuffers.get(key);
     if (!buffer) return;

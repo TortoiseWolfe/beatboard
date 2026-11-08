@@ -2,7 +2,7 @@
 # sfizz is not a Debian package and its 1.2.3 release has no Linux binary, so this is the only way to get it.
 # Nothing is installed on the host. Run it through ~/.claude/scripts/docker-heavy.sh (see sfz_render.py).
 #
-#   docker build -t beatboard-sfizz tools/kits/sfz
+#   docker build -t beatboard-sfizz tools/sampler
 FROM debian:trixie-slim AS build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates git cmake g++ make pkg-config libsndfile1-dev \
@@ -14,8 +14,8 @@ RUN cmake .. -DCMAKE_BUILD_TYPE=Release \
       -DSFIZZ_JACK=OFF -DSFIZZ_RENDER=ON -DSFIZZ_LV2=OFF -DSFIZZ_VST=OFF -DSFIZZ_PUREDATA=OFF \
       -DSFIZZ_TESTS=OFF -DSFIZZ_DEMOS=OFF -DSFIZZ_DEVTOOLS=OFF -DSFIZZ_BENCHMARKS=OFF \
  && cmake --build . --target sfizz_render -j4 \
- && strip clients/sfizz_render \
- && cp clients/sfizz_render /sfizz_render
+ && strip library/bin/sfizz_render \
+ && cp library/bin/sfizz_render /sfizz_render
 
 FROM debian:trixie-slim
 # sox and ffmpeg do the mix (reverb, EQ, compression, loudness) in the same container.
