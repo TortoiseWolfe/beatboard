@@ -54,6 +54,13 @@ class SplitTests(unittest.TestCase):
         _, ev = ms.parse(smf([t]))
         self.assertEqual(ms.notes(ev, 0), [(0, 200, 60, 100), (100, 200, 62, 100)])
 
+    def test_make_midi_round_trip(self):
+        data = ms.make_midi([(0.0, 1.0, 60, 100), (1.0, 0.5, 64, 90)], bpm=120, ppq=480, channel=3)
+        ppq, ev = ms.parse(data)
+        self.assertEqual(ppq, 480)
+        self.assertEqual(ms.channels_with_notes(ev), [3])
+        self.assertEqual(ms.notes(ev, 3), [(0, 960, 60, 100), (960, 1440, 64, 90)])  # 960 ticks per second at 120 BPM
+
     def test_not_midi_is_refused(self):
         with self.assertRaises(ValueError):
             ms.parse(b"RIFFxxxx")

@@ -5,7 +5,7 @@ Why: an SFZ renderer plays one instrument per run, so each MIDI channel of a tun
 with its own library, then the tracks are mixed. Notes keep their exact lengths and velocities.
 Standard library only (no mido), so it runs on the host and in the container alike.
 
-    python3 tools/kits/midisplit.py tune.mid OUTDIR      writes OUTDIR/ch00.mid, ch01.mid ... for channels that have notes
+    python3 tools/sampler/midisplit.py tune.mid OUTDIR      writes OUTDIR/ch00.mid, ch01.mid ... for channels that have notes
 """
 import struct
 import sys
@@ -77,8 +77,12 @@ def channels_with_notes(events):
     return sorted({e[2][0] & 0x0F for e in events if e[2][0] != 0xFF and (e[2][0] & 0xF0) == 0x90 and e[2][2] > 0})
 
 
-def write_channel(ppq, events, channel):
-    """Format-0 file: every meta event (tempo, time signature) plus the channel's own events."""
+def write_channel(ppq, events, channel, tail_ticks=0):
+    """Format-0 file: every meta event (tempo, time signature) plus the channel's own events.
+
+    `tail_ticks` moves the end-of-track marker that far past the last event, so a renderer run with --use-eot
+    lets the last notes ring out instead of stopping the moment they end.
+    """
     body = bytearray()
     last = 0
     for tick, _, ev in events:
@@ -86,7 +90,32 @@ def write_channel(ppq, events, channel):
             continue
         body += vlq(tick - last) + ev
         last = tick
-    body += vlq(0) + b"\xff\x2f\x00"
+    body += vlq(tail_ticks) + b"\xff\x2f\x00"
+    return b"MThd" + struct.pack(">IHHH", 6, 0, 1, ppq) + b"MTrk" + struct.pack(">I", len(body)) + bytes(body)
+
+
+def make_midi(note_list, bpm=120, ppq=480, channel=0, end_s=None):
+    """Format-0 file from [(start_s, length_s, key, velocity)], used to play one test note through a sampler.
+
+    `end_s` puts the end-of-track marker that many seconds in, so a renderer run with --use-eot keeps rendering
+    through the note's whole natural tail.
+    """
+    tempo = int(round(60_000_000 / bpm))
+    ticks_per_s = ppq * bpm / 60.0
+    evs = []
+    for start, length, key, vel in note_list:
+        on = int(round(start * ticks_per_s))
+        off = on + max(1, int(round(length * ticks_per_s)))
+        evs.append((on, 1, bytes([0x90 | channel, key, vel])))
+        evs.append((off, 0, bytes([0x80 | channel, key, 0])))
+    evs.sort(key=lambda e: (e[0], e[1]))
+    body = bytearray(vlq(0) + b"\xff\x51\x03" + tempo.to_bytes(3, "big"))
+    last = 0
+    for tick, _, ev in evs:
+        body += vlq(tick - last) + ev
+        last = tick
+    end_tick = max(last, int(round(end_s * ticks_per_s))) if end_s is not None else last
+    body += vlq(end_tick - last) + b"\xff\x2f\x00"
     return b"MThd" + struct.pack(">IHHH", 6, 0, 1, ppq) + b"MTrk" + struct.pack(">I", len(body)) + bytes(body)
 
 
