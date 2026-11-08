@@ -1,0 +1,30 @@
+{
+  "bpm": 94,
+  "members": [
+    {"channel": 0, "name": "Timber", "instrument": "Bass", "program": "karoryfer.meatbass/Programs/pizz_three.sfz",
+     "kind": "sustained", "range": [31, 50], "step": 3, "hold_s": 0.5, "tail_s": 3.0, "velocity": 100,
+     "licence": "CC0", "credit": "Meatbass, Karoryfer Samples"},
+    {"channel": 1, "name": "Switch", "instrument": "Pad", "program": "karoryfer.cowsynth/cowsynth_lonely_pad.sfz",
+     "kind": "sustained", "range": [48, 64], "step": 4, "hold_s": 2.0, "tail_s": 4.0, "velocity": 100,
+     "licence": "CC0", "credit": "Cowsynth, Karoryfer Samples"},
+    {"channel": 2, "name": "Chops", "instrument": "Rhythm guitar", "program": "karoryfer.emilyguitar/emily_clean.sfz",
+     "kind": "sustained", "range": [55, 72], "step": 3, "hold_s": 0.5, "tail_s": 3.0, "velocity": 100,
+     "licence": "CC0", "credit": "Emilyguitar, Karoryfer Samples"},
+    {"channel": 3, "name": "Ivory", "instrument": "Piano", "program": "karoryfer.scarypiano/Programs/Scarypiano.sfz",
+     "kind": "sustained", "range": [60, 77], "step": 3, "hold_s": 0.5, "tail_s": 4.0, "velocity": 100,
+     "licence": "CC0", "credit": "Scarypiano, Karoryfer Samples (University of Iowa piano recordings)"},
+    {"channel": 4, "name": "Reed", "instrument": "Alto sax", "program": "karoryfer.weresax/Programs/Sax.sfz",
+     "kind": "sustained", "range": [55, 74], "step": 3, "hold_s": 2.0, "tail_s": 2.0, "velocity": 100,
+     "licence": "CC0", "credit": "Weresax, Karoryfer Samples"},
+    {"channel": 5, "name": "Brass", "instrument": "Trumpet", "program": "VSCO-2-CE/Brass/Trumpet",
+     "kind": "sustained", "range": [60, 79], "step": 3, "hold_s": 2.0, "tail_s": 2.0, "velocity": 100,
+     "licence": "CC0", "credit": "VSCO 2 Community Edition, Versilian Studios"},
+    {"channel": 6, "name": "Chorus", "instrument": "Voices", "program": "epic-choir/S_ah.sfz",
+     "kind": "sustained", "range": [62, 79], "step": 3, "hold_s": 2.0, "tail_s": 2.5, "velocity": 100,
+     "licence": "CC BY 4.0",
+     "credit": "Choir samples derived from VocalSet (Wilkins, Seetharaman, Wahl, Pardo 2018), CC BY 4.0, https://doi.org/10.5281/zenodo.1442513"},
+    {"channel": 9, "name": "Crash", "instrument": "Drums", "program": "virtuosity_drums/Programs/01-basic-kit.sfz",
+     "kind": "oneshot", "range": [36, 46], "keys": [36, 38, 42, 46], "hold_s": 0.1, "tail_s": 4.0, "velocity": 110,
+     "licence": "CC0", "credit": "Virtuosity Drums, Versilian Studios and Karoryfer Samples"}
+  ]
+}

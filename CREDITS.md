@@ -18,6 +18,7 @@
 | `assets/beds/214775_acid-bass.mp3` | freesound 214775 acid bass (SpankMyFilth), freesound.org/s/214775 | CC0 | 2026-10-25 |
 | `assets/beds/214958_acid-mod-bass.mp3` | freesound 214958 acid bass (SpankMyFilth), freesound.org/s/214958 | CC0 | 2026-10-25 |
 | `assets/jingle/manifest.json` | Public jingle manifest. AI-generated takes (ACE-Step 1.5, 110 BPM) | Public Domain / CC0 | 2026-10-26 |
+| `assets/instruments/SOURCES.md` (the instrument libraries the band's sound packs are built from) | Karoryfer Samples (Meatbass, Cowsynth, Emilyguitar, Scarypiano, Weresax, Virtuosity Drums with Versilian Studios) and VSCO 2 Community Edition (Versilian Studios): CC0. Choir: epic-choir from VocalSet (Wilkins, Seetharaman, Wahl, Pardo 2018), https://doi.org/10.5281/zenodo.1442513 | CC0; choir CC BY 4.0 | 2026-11-07 |
 | `tools/kits/` (kit tooling) | Renders per-robot stems with ACE-Step 1.5 (MIT). Output is "music made with AI", and the ID3 tag says so. | MIT (tool); output Public Domain / CC0 | 2026-10-26 |
 
 All drums (kick, snare, closed hat, open hat, ride, clap, tom, tink, sub boom) are synthesized in real-time (`src/kit.js`) from DSP noise and resonator primitives; no drum samples are shipped.
