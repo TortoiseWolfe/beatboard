@@ -704,12 +704,14 @@ def read_votes():
     for fn in ("votes-twitch.json", "votes-youtube.json"):
         for k, d in load_json(f"{AUD}/{fn}", {}).get("songs", {}).items():
             sid = os.path.basename(k).rsplit(".", 1)[0]
+            sid = re.sub(r"-t\d+[a-z]?$", "", sid)
             e = v.setdefault(sid, {"up": 0, "down": 0})
             e["up"] += d.get("up", 0)
             e["down"] += d.get("down", 0)
     for k, val in load_json(f"{AUD}/../votes.json", {}).items():
         if isinstance(val, str):
             sid = os.path.basename(k).rsplit(".", 1)[0]
+            sid = re.sub(r"-t\d+[a-z]?$", "", sid)
             e = v.setdefault(sid, {"up": 0, "down": 0})
             e["up" if val == "like" else "down"] += 1
     return v
