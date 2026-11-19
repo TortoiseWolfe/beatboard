@@ -62,6 +62,48 @@ class VoteTests(unittest.TestCase):
         songs = [{"id": "a", "priority": 3.0}, {"id": "b"}]
         self.assertEqual(tf.pick_song(songs, {}, {})["id"], "a")
 
+    def test_votes_keyed_by_take_reach_song_id(self):
+        # Issue 33: votes stored under 'rave-1-t6' must reach song 'rave-1'
+        mock_votes_file = {"songs": {"rave-1-t6.mp3": {"up": 2, "down": 1}}}
+        original_load_json = tf.load_json
+        tf.load_json = lambda p, default: mock_votes_file if "votes-twitch.json" in p else {}
+        try:
+            votes = tf.read_votes()
+            self.assertIn("rave-1", votes)
+            self.assertEqual(votes["rave-1"], {"up": 2, "down": 1})
+        finally:
+            tf.load_json = original_load_json
+
+    def test_votes_keyed_by_song_id_still_work(self):
+        # Backward compat: votes stored under 'rave-1' (song id) must still reach song 'rave-1'
+        mock_votes_file = {"songs": {"rave-1.mp3": {"up": 5, "down": 0}}}
+        original_load_json = tf.load_json
+        tf.load_json = lambda p, default: mock_votes_file if "votes-twitch.json" in p else {}
+        try:
+            votes = tf.read_votes()
+            self.assertIn("rave-1", votes)
+            self.assertEqual(votes["rave-1"], {"up": 5, "down": 0})
+        finally:
+            tf.load_json = original_load_json
+
+    def test_mixed_take_and_song_keys_combine(self):
+        # Votes from both take-keyed and song-keyed files combine under the song id
+        mock_twitch = {"songs": {"rave-1-t6.mp3": {"up": 2, "down": 1}}}
+        mock_youtube = {"songs": {"rave-1.mp3": {"up": 3, "down": 0}}}
+        original_load_json = tf.load_json
+        def mock_load(p, default):
+            if "votes-twitch.json" in p:
+                return mock_twitch
+            if "votes-youtube.json" in p:
+                return mock_youtube
+            return default
+        tf.load_json = mock_load
+        try:
+            votes = tf.read_votes()
+            self.assertEqual(votes["rave-1"], {"up": 5, "down": 1})
+        finally:
+            tf.load_json = original_load_json
+
 
 class StreamTests(unittest.TestCase):
     START = "10:38:34 PM ffmpeg started: 37 full songs\n"
