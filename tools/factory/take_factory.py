@@ -704,28 +704,35 @@ def save_json(p, obj):
     os.replace(tmp, p)
 
 
+def song_of_take(key):
+    """The song id for a vote key: a file name or take id, with the extension and the take suffix removed.
+
+    'rave-1-t6.mp3' -> 'rave-1'; 'story-12-t0' -> 'story-12'; a take that carries a variant word after its
+    number, 'bike-b-t0b-chant3', -> 'bike-b'. The suffix is '-t<number>[letter]' plus an optional '-<word><digits>'."""
+    name = os.path.basename(key).rsplit(".", 1)[0]
+    return re.sub(r"-t\d+[a-z]?(?:-[a-z]+\d*)?$", "", name)
+
+
 def read_votes():
     v = {}
     for fn in ("votes-twitch.json", "votes-youtube.json"):
         for k, d in load_json(f"{AUD}/{fn}", {}).get("songs", {}).items():
-            sid = os.path.basename(k).rsplit(".", 1)[0]
-            sid = re.sub(r"-t\d+[a-z]?$", "", sid)
+            sid = song_of_take(k)
             e = v.setdefault(sid, {"up": 0, "down": 0})
             e["up"] += d.get("up", 0)
             e["down"] += d.get("down", 0)
     for k, val in load_json(f"{AUD}/../votes.json", {}).items():
         if isinstance(val, str):
-            sid = os.path.basename(k).rsplit(".", 1)[0]
-            sid = re.sub(r"-t\d+[a-z]?$", "", sid)
+            sid = song_of_take(k)
             e = v.setdefault(sid, {"up": 0, "down": 0})
             e["up" if val == "like" else "down"] += 1
-    game = load_json(f"{AUD}/votes-game.json", {}).get("songs", {})
+    game = load_json(f"{AUD}/votes-game.json", {})
+    game = game.get("songs", {}) if isinstance(game, dict) else {}
     if isinstance(game, dict):
         totals = {}
         for k, d in game.items():
             if not isinstance(d, dict): continue
-            sid = os.path.basename(k).rsplit(".", 1)[0]
-            sid = re.sub(r"-t\d+[a-z]?$", "", sid)
+            sid = song_of_take(k)
             t = totals.setdefault(sid, {"finished": 0, "reached_30s": 0})
             for field in ("finished", "reached_30s"):
                 val = d.get(field, 0)

@@ -158,6 +158,48 @@ class VoteTests(unittest.TestCase):
         finally:
             tf.load_json = original_load_json
 
+    def test_game_take_with_a_variant_word_reaches_its_song(self):
+        # the game's fourth song: take bike-b-t0b-chant3 must land on song bike-b, not stay a song of its own
+        mock_game = {"songs": {"bike-b-t0b-chant3": {"plays": 6, "reached_30s": 4, "finished": 2}}}
+        original_load_json = tf.load_json
+        tf.load_json = lambda p, default: mock_game if "votes-game.json" in p else {}
+        try:
+            votes = tf.read_votes()
+            self.assertEqual(list(votes), ["bike-b"])
+            self.assertAlmostEqual(votes["bike-b"]["lift"], 0.4)  # 0.1 * 2 + 0.05 * 4
+        finally:
+            tf.load_json = original_load_json
+
+    def test_all_four_game_take_ids_map_to_their_songs(self):
+        # the take ids in the game's library (TAKE_BY_SONG_ID in scripthammer-stage-play)
+        expected = {"story-12-t0": "story-12", "bike-a-t6": "bike-a", "lore-j-t0": "lore-j", "bike-b-t0b-chant3": "bike-b"}
+        for take, song in expected.items():
+            self.assertEqual(tf.song_of_take(take), song)
+        # file names and the older keys still work, and a song id with no take suffix is left alone
+        self.assertEqual(tf.song_of_take("band-wagon/rave-1-t6.mp3"), "rave-1")
+        self.assertEqual(tf.song_of_take("rave-1.mp3"), "rave-1")
+        self.assertEqual(tf.song_of_take("ns-bike-b-jazzrave"), "ns-bike-b-jazzrave")
+
+    def test_game_lift_plays_only_adds_no_lift_key(self):
+        mock_game = {"songs": {"story-12-t0": {"plays": 9, "reached_30s": 0, "finished": 0}}}
+        original_load_json = tf.load_json
+        tf.load_json = lambda p, default: mock_game if "votes-game.json" in p else {}
+        try:
+            votes = tf.read_votes()
+            self.assertNotIn("story-12", votes)
+            self.assertEqual(tf.song_weight(votes.get("story-12", {})), 1.0)
+        finally:
+            tf.load_json = original_load_json
+
+    def test_game_file_that_is_not_an_object_is_ignored(self):
+        for junk in ([], "text", 7, None):
+            original_load_json = tf.load_json
+            tf.load_json = lambda p, default, junk=junk: junk if "votes-game.json" in p else {}
+            try:
+                self.assertEqual(tf.read_votes(), {})
+            finally:
+                tf.load_json = original_load_json
+
     def test_game_lift_never_lowers(self):
         # song with 2 down votes + lift 1.0 = -1 net; weight 1 + 0.5 * (-1) = 0.5
         # without lift: weight 1 + 0.5 * (-2) = 0, floored to 0.25
