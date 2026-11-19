@@ -104,6 +104,72 @@ class VoteTests(unittest.TestCase):
         finally:
             tf.load_json = original_load_json
 
+    def test_game_lift_formula(self):
+        # finished 2, reached 4 -> 0.1 * 2 + 0.05 * 4 = 0.4
+        mock_game = {"songs": {"story-12-t0": {"plays": 10, "reached_30s": 4, "finished": 2}}}
+        original_load_json = tf.load_json
+        tf.load_json = lambda p, default: mock_game if "votes-game.json" in p else {}
+        try:
+            votes = tf.read_votes()
+            self.assertEqual(votes["story-12"]["lift"], 0.4)
+            self.assertEqual(tf.song_weight(votes["story-12"]), 1.2)
+        finally:
+            tf.load_json = original_load_json
+
+    def test_game_lift_cap(self):
+        # finished 15, reached 28 -> 0.1 * 15 + 0.05 * 28 = 2.9, capped at 2.0
+        mock_game = {"songs": {"story-12-t0": {"plays": 40, "reached_30s": 28, "finished": 15}}}
+        original_load_json = tf.load_json
+        tf.load_json = lambda p, default: mock_game if "votes-game.json" in p else {}
+        try:
+            votes = tf.read_votes()
+            self.assertEqual(votes["story-12"]["lift"], 2.0)
+            self.assertEqual(tf.song_weight(votes["story-12"]), 2.0)
+        finally:
+            tf.load_json = original_load_json
+
+    def test_game_lift_no_file(self):
+        original_load_json = tf.load_json
+        tf.load_json = lambda p, default: default
+        try:
+            votes = tf.read_votes()
+            self.assertEqual(votes, {})
+        finally:
+            tf.load_json = original_load_json
+
+    def test_game_lift_two_takes_add_up(self):
+        # story-12-t0: finished 1 -> 0.1; story-12-t1: reached 2 -> 0.1; total 0.2
+        mock_game = {"songs": {"story-12-t0": {"finished": 1}, "story-12-t1": {"reached_30s": 2}}}
+        original_load_json = tf.load_json
+        tf.load_json = lambda p, default: mock_game if "votes-game.json" in p else {}
+        try:
+            votes = tf.read_votes()
+            self.assertEqual(votes["story-12"]["lift"], 0.2)
+        finally:
+            tf.load_json = original_load_json
+
+    def test_game_lift_junk_input(self):
+        # non-object songs, negative counts, string counts, bool counts: all treated as 0
+        mock_game = {"songs": [{"id": "x"}], "other": {"story-12-t0": {"finished": -5, "reached_30s": "many", "plays": True}}}
+        original_load_json = tf.load_json
+        tf.load_json = lambda p, default: mock_game if "votes-game.json" in p else {}
+        try:
+            self.assertEqual(tf.read_votes(), {})
+        finally:
+            tf.load_json = original_load_json
+
+    def test_game_lift_never_lowers(self):
+        # song with 2 down votes + lift 1.0 = -1 net; weight 1 + 0.5 * (-1) = 0.5
+        # without lift: weight 1 + 0.5 * (-2) = 0, floored to 0.25
+        votes = {"up": 0, "down": 2, "lift": 1.0}
+        self.assertGreater(tf.song_weight(votes), tf.song_weight({"up": 0, "down": 2}))
+        self.assertGreaterEqual(tf.song_weight(votes), 0.25)
+
+    def test_pick_song_prefers_lift_at_equal_votes(self):
+        songs = [{"id": "a"}, {"id": "b"}]
+        votes = {"a": {"up": 1, "down": 0}, "b": {"up": 1, "down": 0, "lift": 0.1}}
+        self.assertEqual(tf.pick_song(songs, {}, votes)["id"], "b")
+
 
 class StreamTests(unittest.TestCase):
     START = "10:38:34 PM ffmpeg started: 37 full songs\n"

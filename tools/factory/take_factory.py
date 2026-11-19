@@ -411,9 +411,14 @@ def speech_problems(path, lyrics, total, hear=heard_words, hear_alt=None):
     return out
 
 
+GAME_FINISHED_LIFT = 0.1
+GAME_30S_LIFT = 0.05
+GAME_LIFT_CAP = 2.0
+
+
 def song_weight(votes, priority=1.0):
     """More net up votes -> more takes; down-voted songs get fewer (never zero)."""
-    net = votes.get("up", 0) - votes.get("down", 0)
+    net = votes.get("up", 0) - votes.get("down", 0) + max(0, votes.get("lift", 0))
     return priority * min(5.0, max(0.25, 1 + 0.5 * net))
 
 
@@ -714,6 +719,23 @@ def read_votes():
             sid = re.sub(r"-t\d+[a-z]?$", "", sid)
             e = v.setdefault(sid, {"up": 0, "down": 0})
             e["up" if val == "like" else "down"] += 1
+    game = load_json(f"{AUD}/votes-game.json", {}).get("songs", {})
+    if isinstance(game, dict):
+        totals = {}
+        for k, d in game.items():
+            if not isinstance(d, dict): continue
+            sid = os.path.basename(k).rsplit(".", 1)[0]
+            sid = re.sub(r"-t\d+[a-z]?$", "", sid)
+            t = totals.setdefault(sid, {"finished": 0, "reached_30s": 0})
+            for field in ("finished", "reached_30s"):
+                val = d.get(field, 0)
+                if isinstance(val, (int, float)) and not isinstance(val, bool):
+                    t[field] += max(0, val)
+        for sid, t in totals.items():
+            lift = GAME_FINISHED_LIFT * t["finished"] + GAME_30S_LIFT * t["reached_30s"]
+            if lift > 0:
+                e = v.setdefault(sid, {"up": 0, "down": 0})
+                e["lift"] = min(GAME_LIFT_CAP, lift)
     return v
 
 
